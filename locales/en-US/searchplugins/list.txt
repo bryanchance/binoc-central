@@ -1,7 +1,4 @@
-amazondotcom
-answers
-creativecommons
-eBay
+duckduckgo
 google
 wikipedia
 yahoo

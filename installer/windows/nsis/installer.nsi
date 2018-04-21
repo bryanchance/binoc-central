@@ -1,42 +1,11 @@
-# ***** BEGIN LICENSE BLOCK *****
-# Version: MPL 1.1/GPL 2.0/LGPL 2.1
-#
-# The contents of this file are subject to the Mozilla Public License Version
-# 1.1 (the "License"); you may not use this file except in compliance with
-# the License. You may obtain a copy of the License at
-# http://www.mozilla.org/MPL/
-#
-# Software distributed under the License is distributed on an "AS IS" basis,
-# WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
-# for the specific language governing rights and limitations under the
-# License.
-#
-# The Original Code is the Mozilla Installer code.
-#
-# The Initial Developer of the Original Code is Mozilla Foundation
-# Portions created by the Initial Developer are Copyright (C) 2006
-# the Initial Developer. All Rights Reserved.
-#
-# Contributor(s):
-#  Robert Strong <robert.bugzilla@gmail.com>
-#
-# Alternatively, the contents of this file may be used under the terms of
-# either the GNU General Public License Version 2 or later (the "GPL"), or
-# the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
-# in which case the provisions of the GPL or the LGPL are applicable instead
-# of those above. If you wish to allow use of your version of this file only
-# under the terms of either the GPL or the LGPL, and not to allow others to
-# use your version of this file under the terms of the MPL, indicate your
-# decision by deleting the provisions above and replace them with the notice
-# and other provisions required by the GPL or the LGPL. If you do not delete
-# the provisions above, a recipient may use your version of this file under
-# the terms of any one of the MPL, the GPL or the LGPL.
-#
-# ***** END LICENSE BLOCK *****
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-# Required Plugins:
+# Also requires:
 # AppAssocReg http://nsis.sourceforge.net/Application_Association_Registration_plug-in
-# ShellLink   http://nsis.sourceforge.net/ShellLink_plug-in
+# CityHash    http://mxr.mozilla.org/mozilla-central/source/other-licenses/nsis/Contrib/CityHash
+# ShellLink plugin http://nsis.sourceforge.net/ShellLink_plug-in
 # UAC         http://nsis.sourceforge.net/UAC_plug-in
 
 ; Set verbosity to 3 (e.g. no script) to lessen the noise in the build logs
@@ -50,44 +19,46 @@ CRCCheck on
 
 RequestExecutionLevel user
 
+; The commands inside this ifdef require NSIS 3.0a2 or greater so the ifdef can
+; be removed after we require NSIS 3.0a2 or greater.
+!ifdef NSIS_PACKEDVERSION
+  Unicode true
+  ManifestSupportedOS all
+  ManifestDPIAware true
+!endif
+
 !addplugindir ./
 
 Var TmpVal
 Var StartMenuDir
 Var InstallType
 Var AddStartMenuSC
+Var AddTaskbarSC
 Var AddQuickLaunchSC
 Var AddDesktopSC
-Var PageName
-
-; On Vista and above attempt to elevate Standard Users in addition to users that
-; are a member of the Administrators group.
-!define NONADMIN_ELEVATE
-
-!define AbortSurveyURL "http://www.kampyle.com/feedback_form/ff-feedback-form.php?site_code=8166124&form_id=12116&url="
+Var InstallMaintenanceService
 
 ; Other included files may depend upon these includes!
 ; The following includes are provided by NSIS.
 !include FileFunc.nsh
 !include LogicLib.nsh
-!include MUI.nsh
 !include WinMessages.nsh
 !include WinVer.nsh
 !include WordFunc.nsh
+!include MUI.nsh
 
+!insertmacro StrFilter
 !insertmacro GetOptions
 !insertmacro GetParameters
 !insertmacro GetSize
-!insertmacro StrFilter
 !insertmacro WordFind
-!insertmacro WordReplace
 
 ; The following includes are custom.
 !include branding.nsi
 !include defines.nsi
 !include common.nsh
 !include locales.nsi
-!include version.nsh
+!include custom.nsi
 
 VIAddVersionKey "FileDescription" "${BrandShortName} Installer"
 VIAddVersionKey "OriginalFilename" "setup.exe"
@@ -99,17 +70,19 @@ VIAddVersionKey "OriginalFilename" "setup.exe"
 !insertmacro _LoggingShortcutsCommon
 
 !insertmacro AddDDEHandlerValues
+!insertmacro AddHandlerValues
 !insertmacro ChangeMUIHeaderImage
 !insertmacro CheckForFilesInUse
-!insertmacro CleanUpdatesDir
+!insertmacro CheckIfRegistryKeyExists
+!insertmacro CleanUpdateDirectories
 !insertmacro CopyFilesFromDir
 !insertmacro CreateRegKey
 !insertmacro FindSMProgramsDir
 !insertmacro GetPathFromString
 !insertmacro GetParent
+!insertmacro InitHashAppModelId
 !insertmacro IsHandlerForInstallDir
 !insertmacro ManualCloseAppPrompt
-!insertmacro RegCleanAppHandler
 !insertmacro RegCleanMain
 !insertmacro RegCleanUninstall
 !insertmacro SetBrandNameVars
@@ -131,15 +104,17 @@ VIAddVersionKey "OriginalFilename" "setup.exe"
 
 Name "${BrandFullName}"
 OutFile "setup.exe"
-InstallDirRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${BrandFullNameInternal} (${AppVersion})" "InstallLocation"
-InstallDir "$PROGRAMFILES\${BrandFullName}\"
+!ifdef HAVE_64BIT_BUILD
+  InstallDir "$PROGRAMFILES64\${BrandFullName}\"
+!else
+  InstallDir "$PROGRAMFILES32\${BrandFullName}\"
+!endif
 ShowInstDetails nevershow
 
 ################################################################################
 # Modern User Interface - MUI
 
-!define MOZ_MUI_CUSTOM_ABORT
-!define MUI_CUSTOMFUNCTION_ABORT "CustomAbort"
+!define MUI_ABORTWARNING
 !define MUI_ICON setup.ico
 !define MUI_UNICON setup.ico
 !define MUI_WELCOMEPAGE_TITLE_3LINES
@@ -161,8 +136,16 @@ ShowInstDetails nevershow
 !define MUI_PAGE_CUSTOMFUNCTION_PRE preWelcome
 !insertmacro MUI_PAGE_WELCOME
 
+; License Page
+!define MUI_PAGE_CUSTOMFUNCTION_SHOW showLicense
+!define MUI_LICENSEPAGE_CHECKBOX
+!insertmacro MUI_PAGE_LICENSE license.txt
+
 ; Custom Options Page
 Page custom preOptions leaveOptions
+
+; Custom Components Page
+Page custom preComponents leaveComponents
 
 ; Select Install Directory Page
 !define MUI_PAGE_CUSTOMFUNCTION_PRE preDirectory
@@ -197,7 +180,6 @@ Page custom preSummary leaveSummary
 ChangeUI IDD_VERIFY "${NSISDIR}\Contrib\UIs\default.exe"
 
 ################################################################################
-# Install Sections
 
 ; Cleanup operations to perform at the start of the installation.
 Section "-InstallStartCleanup"
@@ -220,8 +202,55 @@ Section "-InstallStartCleanup"
     ClearErrors
   ${EndIf}
 
+  ${If} $InstallType == ${INSTALLTYPE_CUSTOM}
+    ; Custom installs.
+    ; If ChatZilla is installed and this install includes ChatZilla remove it
+    ; from the installation directory. This will remove it if the user
+    ; deselected ChatZilla on the components page.
+    ${If} ${FileExists} "$EXEDIR\optional\distribution\extensions\{59c81df5-4b7a-477b-912d-4e0fdf64e5f2}.xpi"
+      ${DeleteFile} "$INSTDIR\distribution\extensions\{59c81df5-4b7a-477b-912d-4e0fdf64e5f2}.xpi"
+      ${DeleteFile} "$INSTDIR\extensions\{59c81df5-4b7a-477b-912d-4e0fdf64e5f2}.xpi"
+      ${If} ${FileExists} "$INSTDIR\extensions\{59c81df5-4b7a-477b-912d-4e0fdf64e5f2}"
+        RmDir /r "$INSTDIR\extensions\{59c81df5-4b7a-477b-912d-4e0fdf64e5f2}"
+      ${EndIf}
+    ${EndIf}
+    ${If} ${FileExists} "$EXEDIR\optional\distribution\extensions\langpack-${AB_CD}@chatzilla.mozilla.org.xpi"
+      ${DeleteFile} "$INSTDIR\distribution\extensions\{59c81df5-4b7a-477b-912d-4e0fdf64e5f2}.xpi"
+      ${DeleteFile} "$INSTDIR\extensions\{59c81df5-4b7a-477b-912d-4e0fdf64e5f2}.xpi"
+      ${If} ${FileExists} "$INSTDIR\extensions\langpack-${AB_CD}@chatzilla.mozilla.org"
+        RmDir /r "$INSTDIR\extensions\langpack-${AB_CD}@chatzilla.mozilla.org"
+      ${EndIf}
+    ${EndIf}
+
+    ; If DOMi is installed and this install includes DOMi remove it from
+    ; the installation directory. This will remove it if the user deselected
+    ; DOMi on the components page.
+    ${If} ${FileExists} "$EXEDIR\optional\distribution\extensions\inspector@mozilla.org.xpi"
+      ${DeleteFile} "$INSTDIR\distribution\extensions\inspector@mozilla.org.xpi"
+      ${DeleteFile} "$INSTDIR\extensions\inspector@mozilla.org.xpi"
+      ${If} ${FileExists} "$INSTDIR\extensions\inspector@mozilla.org"
+        RmDir /r "$INSTDIR\extensions\inspector@mozilla.org"
+      ${EndIf}
+    ${EndIf}
+
+    ; If DebugQA is installed and this install includes DebugQA remove it
+    ; from the installation directory. This will remove it if the user
+    ; deselected DebugQA on the components page.
+    ${If} ${FileExists} "$EXEDIR\optional\distribution\extensions\debugQA@mozilla.org.xpi"
+      ${DeleteFile} "$INSTDIR\distribution\extensions\debugQA@mozilla.org.xpi"
+      ${DeleteFile} "$INSTDIR\extensions\debugQA@mozilla.org.xpi"
+      ${If} ${FileExists} "$INSTDIR\extensions\debugQA@mozilla.org"
+        RmDir /r "$INSTDIR\extensions\debugQA@mozilla.org"
+      ${EndIf}
+    ${EndIf}
+
+  ${EndIf}
+
+  ; setup the application model id registration value
+  ${InitHashAppModelId} "$INSTDIR" "Software\Mozilla\${AppName}\TaskBarIDs"
+
   ; Remove the updates directory for Vista and above
-  ${CleanUpdatesDir} "Mozilla\Firefox"
+  ${CleanUpdateDirectories} "Mozilla\SeaMonkey" "Mozilla\updates"
 
   ${InstallStartCleanupCommon}
 SectionEnd
@@ -234,9 +263,39 @@ Section "-Application" APP_IDX
   SetDetailsPrint none
 
   ${LogHeader} "Installing Main Files"
-  ${CopyFilesFromDir} "$EXEDIR\nonlocalized" "$INSTDIR" \
+  ${CopyFilesFromDir} "$EXEDIR\core" "$INSTDIR" \
                       "$(ERROR_CREATE_DIRECTORY_PREFIX)" \
                       "$(ERROR_CREATE_DIRECTORY_SUFFIX)"
+
+  ; distribution/extensions must exist for the optional extensions to install
+  ; properly. Ensure it is present on install, no harm if it is empty.
+  ; CreateDirectory creates nested dirs if required. If already present we'll
+  ; Just fix ourselves on ClearErrors below
+  CreateDirectory "$INSTDIR\distribution\extensions"
+
+  ; The MAPI DLL's are copied and the copies are then registered to lessen
+  ; file in use errors on application update.
+  ClearErrors
+  ${DeleteFile} "$INSTDIR\MapiProxy_InUse.dll"
+  ${If} ${Errors}
+    ; Clear the way for the new file and delete the old file on reboot
+    Rename "$INSTDIR\MapiProxy_InUse.dll" "$INSTDIR\MapiProxy_InUse.dll.moz-delete"
+    Delete /REBOOTOK "$INSTDIR\MapiProxy_InUse.dll.moz-delete"
+  ${EndIf}
+  CopyFiles /SILENT "$EXEDIR\core\MapiProxy.dll" "$INSTDIR\MapiProxy_InUse.dll"
+  ${LogMsg} "Installed File: $INSTDIR\MapiProxy_InUse.dll"
+  ${LogUninstall} "File: \MapiProxy_InUse.dll"
+
+  ClearErrors
+  ${DeleteFile} "$INSTDIR\mozMapi32_InUse.dll"
+  ${If} ${Errors}
+    ; Clear the way for the new file and delete the old file on reboot
+    Rename "$INSTDIR\mozMapi32_InUse.dll" "$INSTDIR\mozMapi32_InUse.dll.moz-delete"
+    Delete /REBOOTOK "$INSTDIR\mozMapi32_InUse.dll.moz-delete"
+  ${EndIf}
+  CopyFiles /SILENT "$EXEDIR\core\mozMapi32.dll" "$INSTDIR\mozMapi32_InUse.dll"
+  ${LogMsg} "Installed File: $INSTDIR\mozMapi32_InUse.dll"
+  ${LogUninstall} "File: \mozMapi32_InUse.dll"
 
   ; Register DLLs
   ; XXXrstrong - AccessibleMarshal.dll can be used by multiple applications but
@@ -245,7 +304,7 @@ Section "-Application" APP_IDX
   ; registered. bug 338878
   ${LogHeader} "DLL Registration"
   ClearErrors
-  RegDLL "$INSTDIR\AccessibleMarshal.dll"
+  ${RegisterDLL} "$INSTDIR\AccessibleMarshal.dll"
   ${If} ${Errors}
     ${LogMsg} "** ERROR Registering: $INSTDIR\AccessibleMarshal.dll **"
   ${Else}
@@ -259,49 +318,24 @@ Section "-Application" APP_IDX
   ; parent directories will be removed.
   ${LogUninstall} "File: \components\compreg.dat"
   ${LogUninstall} "File: \components\xpti.dat"
-  ${LogUninstall} "File: \.autoreg"
   ${LogUninstall} "File: \active-update.xml"
   ${LogUninstall} "File: \install.log"
   ${LogUninstall} "File: \install_status.log"
   ${LogUninstall} "File: \install_wizard.log"
   ${LogUninstall} "File: \updates.xml"
 
-  SetDetailsPrint both
-  DetailPrint $(STATUS_INSTALL_LANG)
-  SetDetailsPrint none
-
-  ${LogHeader} "Installing Localized Files"
-  ${CopyFilesFromDir} "$EXEDIR\localized" "$INSTDIR" \
-                      "$(ERROR_CREATE_DIRECTORY_PREFIX)" \
-                      "$(ERROR_CREATE_DIRECTORY_SUFFIX)"
-
-  ; Check if QuickTime is installed and copy the nsIQTScriptablePlugin.xpt from
-  ; its plugins directory into the app's components directory.
-  ClearErrors
-  ReadRegStr $R0 HKLM "Software\Apple Computer, Inc.\QuickTime" "InstallDir"
-  ${Unless} ${Errors}
-    ${GetLongPath} "$R0" $R0
-    ${Unless} "$R0" == ""
-      ClearErrors
-      GetFullPathName $R0 "$R0\Plugins\nsIQTScriptablePlugin.xpt"
-      ${Unless} ${Errors}
-        ${LogHeader} "Copying QuickTime Scriptable Component"
-        CopyFiles /SILENT "$R0" "$INSTDIR\components"
-        ${If} ${Errors}
-          ${LogMsg} "** ERROR Installing File: $INSTDIR\components\nsIQTScriptablePlugin.xpt **"
-        ${Else}
-          ${LogMsg} "Installed File: $INSTDIR\components\nsIQTScriptablePlugin.xpt"
-          ${LogUninstall} "File: \components\nsIQTScriptablePlugin.xpt"
-        ${EndIf}
-      ${EndUnless}
-    ${EndUnless}
-  ${EndUnless}
   ClearErrors
 
   ; Default for creating Start Menu folder and shortcuts
   ; (1 = create, 0 = don't create)
   ${If} $AddStartMenuSC == ""
     StrCpy $AddStartMenuSC "1"
+  ${EndIf}
+
+; Default for creating Task Bar shortcuts
+  ; (1 = create, 0 = don't create)
+  ${If} $AddTaskbarSC == ""
+    StrCpy $AddTaskbarSC "1"
   ${EndIf}
 
   ; Default for creating Quick Launch shortcut (1 = create, 0 = don't create)
@@ -331,16 +365,9 @@ Section "-Application" APP_IDX
     ${RegCleanMain} "Software\Mozilla"
     ${RegCleanUninstall}
     ${UpdateProtocolHandlers}
-
-    ReadRegStr $0 HKLM "Software\mozilla.org\Mozilla" "CurrentVersion"
-    ${If} "$0" != "${GREVersion}"
-      WriteRegStr HKLM "Software\mozilla.org\Mozilla" "CurrentVersion" "${GREVersion}"
-    ${EndIf}
   ${EndIf}
 
-  ${RemoveDeprecatedKeys}
-
-  ; The previous installer adds several regsitry values to both HKLM and HKCU.
+  ; The previous installer adds several registry values to both HKLM and HKCU.
   ; We now try to add to HKLM and if that fails to HKCU
 
   ; The order that reg keys and values are added is important if you use the
@@ -352,38 +379,45 @@ Section "-Application" APP_IDX
 
   ${FixClassKeys}
 
-  ; Uninstall keys can only exist under HKLM on some versions of windows. Since
-  ; it doesn't cause problems always add them.
-  ${SetUninstallKeys}
-
-  ; On install always add the FirefoxHTML and FirefoxURL keys.
-  ; An empty string is used for the 5th param because FirefoxHTML and FirefoxURL
-  ; are not protocol handlers.
+  StrCpy $1 "$\"$8$\" -requestPending -osint -url $\"%1$\""
+  StrCpy $2 "$\"%1$\",,0,0,,,,"
+  StrCpy $3 "$\"$8$\"  -url $\"%1$\""
   ${GetLongPath} "$INSTDIR\${FileMainEXE}" $8
-  StrCpy $2 "$\"$8$\" -requestPending -osint -url $\"%1$\""
-  StrCpy $3 "$\"%1$\",,0,0,,,,"
 
-  ${AddDDEHandlerValues} "FirefoxHTML" "$2" "$8,1" "${AppRegName} Document" "" \
-                         "${DDEApplication}" "$3" "WWW_OpenURL"
+  ; An empty string is used for the 5th param because SeaMonkeyHTML is not a
+  ; protocol handler
+  ${AddHandlerValues} "SOFTWARE\Classes\SeaMonkeyHTML" "$3" \
+                      "$INSTDIR\chrome\icons\default\html-file.ico,0" \
+                      "${AppRegName} Document" "" ""
+  ${AddDDEHandlerValues} "SeaMonkeyURL" "$1" "$8,0" "${AppRegName} URL" "" \
+                         "${DDEApplication}" "$2" "WWW_OpenURL"
 
-  ${AddDDEHandlerValues} "FirefoxURL" "$2" "$8,1" "${AppRegName} URL" "true" \
-                         "${DDEApplication}" "$3" "WWW_OpenURL"
+  ${FixShellIconHandler}
 
   ; The following keys should only be set if we can write to HKLM
   ${If} $TmpVal == "HKLM"
+    ; Uninstall keys can only exist under HKLM on some versions of windows.
+    ${SetUninstallKeys}
+
     ; Set the Start Menu Internet and Vista Registered App HKLM registry keys.
     ${SetStartMenuInternet}
-
-    ${FixShellIconHandler}
+    ${SetClientsMail}
 
     ; If we are writing to HKLM and create the quick launch and the desktop
     ; shortcuts set IconsVisible to 1 otherwise to 0.
+    ; Taskbar shortcuts imply having a start menu shortcut.
     ${StrFilter} "${FileMainEXE}" "+" "" "" $R9
-    StrCpy $0 "Software\Clients\StartMenuInternet\$R9\InstallInfo"
     ${If} $AddQuickLaunchSC == 1
     ${OrIf} $AddDesktopSC == 1
+    ${OrIf} $AddTaskbarSC == 1
+      StrCpy $0 "Software\Clients\StartMenuInternet\$R9\InstallInfo"
+      WriteRegDWORD HKLM "$0" "IconsVisible" 1
+      StrCpy $0 "Software\Clients\Mail\${BrandFullNameInternal}\InstallInfo"
       WriteRegDWORD HKLM "$0" "IconsVisible" 1
     ${Else}
+      StrCpy $0 "Software\Clients\StartMenuInternet\$R9\InstallInfo"
+      WriteRegDWORD HKLM "$0" "IconsVisible" 0
+      StrCpy $0 "Software\Clients\Mail\${BrandFullNameInternal}\InstallInfo"
       WriteRegDWORD HKLM "$0" "IconsVisible" 0
     ${EndIf}
   ${EndIf}
@@ -396,11 +430,13 @@ Section "-Application" APP_IDX
 
   StrCpy $0 "Software\Microsoft\MediaPlayer\ShimInclusionList\$R9"
   ${CreateRegKey} "$TmpVal" "$0" 0
+  StrCpy $0 "Software\Microsoft\MediaPlayer\ShimInclusionList\plugin-container.exe"
+  ${CreateRegKey} "$TmpVal" "$0" 0
+
+  !insertmacro MUI_STARTMENU_WRITE_BEGIN Application
 
   ; Create shortcuts
   ${LogHeader} "Adding Shortcuts"
-
-  !insertmacro MUI_STARTMENU_WRITE_BEGIN Application
 
   ; Always add the relative path to the application's Start Menu directory and
   ; the application's shortcuts to the shortcuts log ini file. The
@@ -409,48 +445,107 @@ Section "-Application" APP_IDX
   ${LogSMProgramsDirRelPath} "$StartMenuDir"
   ${LogSMProgramsShortcut} "${BrandFullName}.lnk"
   ${LogSMProgramsShortcut} "${BrandFullName} ($(SAFE_MODE)).lnk"
+  ${LogSMProgramsShortcut} "${BrandFullNameInternal} $(MAILNEWS_TEXT).lnk"
+  ${LogSMProgramsShortcut} "$(PROFILE_TEXT).lnk"
   ${LogQuickLaunchShortcut} "${BrandFullName}.lnk"
   ${LogDesktopShortcut} "${BrandFullName}.lnk"
 
-  ; UAC only allows elevating to an Admin account so there is no need to add
-  ; the Start Menu or Desktop shortcuts from the original unelevated process
-  ; since this will either add it for the user if unelevated or All Users if
-  ; elevated.
   ${If} $AddStartMenuSC == 1
     ${Unless} ${FileExists} "$SMPROGRAMS\$StartMenuDir"
       CreateDirectory "$SMPROGRAMS\$StartMenuDir"
       ${LogMsg} "Added Start Menu Directory: $SMPROGRAMS\$StartMenuDir"
     ${EndUnless}
     CreateShortCut "$SMPROGRAMS\$StartMenuDir\${BrandFullName}.lnk" "$INSTDIR\${FileMainEXE}" "" "$INSTDIR\${FileMainEXE}" 0
+    ${If} ${AtLeastWin7}
+    ${AndIf} "$AppUserModelID" != ""
+      ApplicationID::Set "$SMPROGRAMS\$StartMenuDir\${BrandFullName}.lnk" "$AppUserModelID"
+    ${EndIf}
     ${LogMsg} "Added Shortcut: $SMPROGRAMS\$StartMenuDir\${BrandFullName}.lnk"
     CreateShortCut "$SMPROGRAMS\$StartMenuDir\${BrandFullName} ($(SAFE_MODE)).lnk" "$INSTDIR\${FileMainEXE}" "-safe-mode" "$INSTDIR\${FileMainEXE}" 0
+    ${If} ${AtLeastWin7}
+    ${AndIf} "$AppUserModelID" != ""
+      ApplicationID::Set "$SMPROGRAMS\$StartMenuDir\${BrandFullName} ($(SAFE_MODE)).lnk" "$AppUserModelID"
+    ${EndIf}
     ${LogMsg} "Added Shortcut: $SMPROGRAMS\$StartMenuDir\${BrandFullName} ($(SAFE_MODE)).lnk"
+    CreateShortCut "$SMPROGRAMS\$StartMenuDir\${BrandFullName} $(MAILNEWS_TEXT).lnk" "$INSTDIR\${FileMainEXE}" "-mail" "$INSTDIR\chrome\icons\default\messengerWindow.ico" 0
+    ${LogMsg} "Added Shortcut: $SMPROGRAMS\$StartMenuDir\${BrandFullName} $(MAILNEWS_TEXT).lnk"
+    CreateShortCut "$SMPROGRAMS\$StartMenuDir\$(PROFILE_TEXT).lnk" "$INSTDIR\${FileMainEXE}" "-profileManager" "$INSTDIR\${FileMainEXE}" 0
+    ${LogMsg} "Added Shortcut: $SMPROGRAMS\$StartMenuDir\$(PROFILE_TEXT).lnk"
   ${EndIf}
 
-  !insertmacro MUI_STARTMENU_WRITE_END
+  ${If} $AddQuickLaunchSC == 1
+    CreateShortCut "$QUICKLAUNCH\${BrandFullName}.lnk" "$INSTDIR\${FileMainEXE}" "" "$INSTDIR\${FileMainEXE}" 0
+    ${If} ${AtLeastWin7}
+    ${AndIf} "$AppUserModelID" != ""
+      ApplicationID::Set "$QUICKLAUNCH\${BrandFullName}.lnk" "$AppUserModelID"
+    ${EndIf}
+    ${LogMsg} "Added Shortcut: $QUICKLAUNCH\${BrandFullName}.lnk"
+  ${EndIf}
 
   ${If} $AddDesktopSC == 1
     CreateShortCut "$DESKTOP\${BrandFullName}.lnk" "$INSTDIR\${FileMainEXE}" "" "$INSTDIR\${FileMainEXE}" 0
+    ${If} ${AtLeastWin7}
+    ${AndIf} "$AppUserModelID" != ""
+      ApplicationID::Set "$DESKTOP\${BrandFullName}.lnk" "$AppUserModelID"
+    ${EndIf}
     ${LogMsg} "Added Shortcut: $DESKTOP\${BrandFullName}.lnk"
   ${EndIf}
 
-  ; If elevated the Quick Launch shortcut must be added from the unelevated
-  ; original process.
-  ${If} $AddQuickLaunchSC == 1
+  !insertmacro MUI_STARTMENU_WRITE_END
+SectionEnd
+
+Section /o "IRC Client" CZ_IDX
+  ${If} ${FileExists} "$EXEDIR\optional\distribution\extensions\{59c81df5-4b7a-477b-912d-4e0fdf64e5f2}.xpi"
+    SetDetailsPrint both
+    DetailPrint $(STATUS_INSTALL_OPTIONAL)
+    SetDetailsPrint none
+
+    ${RemoveDir} "$INSTDIR\extensions\{59c81df5-4b7a-477b-912d-4e0fdf64e5f2}"
+    ${RemoveDir} "$INSTDIR\extensions\langpack-${AB_CD}@chatzilla.mozilla.org"
+    ${DeleteFile} "$INSTDIR\extensions\{59c81df5-4b7a-477b-912d-4e0fdf64e5f2}.xpi"
+    ${DeleteFile} "$INSTDIR\extensions\langpack-${AB_CD}@chatzilla.mozilla.org.xpi"
+    ${DeleteFile} "$INSTDIR\distribution\extensions\{59c81df5-4b7a-477b-912d-4e0fdf64e5f2}.xpi"
+    ${DeleteFile} "$INSTDIR\distribution\extensions\langpack-${AB_CD}@chatzilla.mozilla.org.xpi"
     ClearErrors
-    ${GetParameters} $0
-    ${GetOptions} "$0" "/UAC:" $0
-    ${If} ${Errors}
-      Call AddQuickLaunchShortcut
-      ${LogMsg} "Added Shortcut: $QUICKLAUNCH\${BrandFullName}.lnk"
-    ${Else}
-      ; It is not possible to add a log entry from the unelevated process so
-      ; add the log entry without the path since there is no simple way to know
-      ; the correct full path.
-      ${LogMsg} "Added Quick Launch Shortcut: ${BrandFullName}.lnk"
-      GetFunctionAddress $0 AddQuickLaunchShortcut
-      UAC::ExecCodeSegment $0
+    ${LogHeader} "Installing IRC Client"
+    CopyFiles /SILENT "$EXEDIR\optional\distribution\extensions\{59c81df5-4b7a-477b-912d-4e0fdf64e5f2}.xpi" \
+                      "$INSTDIR\distribution\extensions\"
+    ${If} ${FileExists} "$EXEDIR\optional\distribution\extensions\langpack-${AB_CD}@chatzilla.mozilla.org.xpi"
+      CopyFiles /SILENT "$EXEDIR\optional\distribution\extensions\langpack-${AB_CD}@chatzilla.mozilla.org.xpi" \
+                        "$INSTDIR\distribution\extensions\"
     ${EndIf}
+  ${EndIf}
+SectionEnd
+
+Section /o "Developer Tools" DOMI_IDX
+  ${If} ${FileExists} "$EXEDIR\optional\distribution\extensions\inspector@mozilla.org.xpi"
+    SetDetailsPrint both
+    DetailPrint $(STATUS_INSTALL_OPTIONAL)
+    SetDetailsPrint none
+
+    ${RemoveDir} "$INSTDIR\extensions\inspector@mozilla.org"
+    ${DeleteFile} "$INSTDIR\extensions\inspector@mozilla.org.xpi"
+    ${DeleteFile} "$INSTDIR\distribution\extensions\inspector@mozilla.org.xpi"
+    ClearErrors
+    ${LogHeader} "Installing Developer Tools"
+    CopyFiles /SILENT "$EXEDIR\optional\distribution\extensions\inspector@mozilla.org.xpi" \
+                      "$INSTDIR\distribution\extensions\"
+  ${EndIf}
+SectionEnd
+
+Section /o "Debug and QA Tools" DEBUG_IDX
+  ${If} ${FileExists} "$EXEDIR\optional\distribution\extensions\debugQA@mozilla.org.xpi"
+    SetDetailsPrint both
+    DetailPrint $(STATUS_INSTALL_OPTIONAL)
+    SetDetailsPrint none
+
+    ${RemoveDir} "$INSTDIR\extensions\debugQA@mozilla.org"
+    ${DeleteFile} "$INSTDIR\extensions\debugQA@mozilla.org.xpi"
+    ${DeleteFile} "$INSTDIR\distribution\extensions\debugQA@mozilla.org.xpi"
+    ClearErrors
+    ${LogHeader} "Installing Debug and QA Tools"
+    CopyFiles /SILENT "$EXEDIR\optional\distribution\extensions\debugQA@mozilla.org.xpi" \
+                      "$INSTDIR\distribution\extensions\"
   ${EndIf}
 SectionEnd
 
@@ -460,30 +555,14 @@ Section "-InstallEndCleanup"
   DetailPrint "$(STATUS_CLEANUP)"
   SetDetailsPrint none
 
-  ${Unless} ${Silent}
-    ${MUI_INSTALLOPTIONS_READ} $0 "summary.ini" "Field 4" "State"
-    ${If} "$0" == "1"
-      ${LogHeader} "Setting as the default browser"
-      ClearErrors
-      ${GetParameters} $0
-      ${GetOptions} "$0" "/UAC:" $0
-      ${If} ${Errors}
-        Call SetAsDefaultAppUserHKCU
-      ${Else}
-        GetFunctionAddress $0 SetAsDefaultAppUserHKCU
-        UAC::ExecCodeSegment $0
-      ${EndIf}
-    ${EndIf}
-  ${EndUnless}
-
   ; Refresh desktop icons
   System::Call "shell32::SHChangeNotify(i, i, i, i) v (0x08000000, 0, 0, 0)"
 
   ${InstallEndCleanupCommon}
 
+  ; If we have to reboot give SHChangeNotify time to finish the refreshing
+  ; the icons so the OS doesn't display the icons from helper.exe
   ${If} ${RebootFlag}
-    ; When a reboot is required give SHChangeNotify time to finish the
-    ; refreshing the icons so the OS doesn't display the icons from helper.exe
     Sleep 10000
     ${LogHeader} "Reboot Required To Finish Installation"
     ; ${FileMainEXE}.moz-upgrade should never exist but just in case...
@@ -497,8 +576,7 @@ Section "-InstallEndCleanup"
       ${Unless} ${Errors}
         Delete /REBOOTOK "$INSTDIR\${FileMainEXE}.moz-delete"
       ${EndUnless}
-    ${EndIf}
-
+    ${EndUnless}
     ${Unless} ${FileExists} "$INSTDIR\${FileMainEXE}"
       CopyFiles /SILENT "$INSTDIR\uninstall\helper.exe" "$INSTDIR"
       FileOpen $0 "$INSTDIR\${FileMainEXE}" w
@@ -511,110 +589,27 @@ Section "-InstallEndCleanup"
   ${EndIf}
 SectionEnd
 
-################################################################################
-# Install Abort Survey Functions
-
-Function CustomAbort
-  ${If} "${AB_CD}" == "en-US"
-  ${AndIf} "$PageName" != ""
-  ${AndIf} ${FileExists} "$EXEDIR\nonlocalized\distribution\distribution.ini"
-    ReadINIStr $0 "$EXEDIR\nonlocalized\distribution\distribution.ini" "Global" "about"
-    ClearErrors
-    ${WordFind} "$0" "Funnelcake" "E#" $1
-    ${Unless} ${Errors}
-      ; Yes = fill out the survey and exit, No = don't fill out survey and exit,
-      ; Cancel = don't exit.
-      MessageBox MB_YESNO|MB_ICONEXCLAMATION \
-                 "Would you like to tell us why you are canceling this installation?" \
-                 IDYes +1 IDNO CustomAbort_finish
-      ${If} "$PageName" == "Welcome"
-          GetFunctionAddress $0 AbortSurveyWelcome
-      ${ElseIf} "$PageName" == "Options"
-          GetFunctionAddress $0 AbortSurveyOptions
-      ${ElseIf} "$PageName" == "Directory"
-          GetFunctionAddress $0 AbortSurveyDirectory
-      ${ElseIf} "$PageName" == "Shortcuts"
-          GetFunctionAddress $0 AbortSurveyShortcuts
-      ${ElseIf} "$PageName" == "StartMenu"
-          GetFunctionAddress $0 AbortSurveyStartMenu
-      ${ElseIf} "$PageName" == "Summary"
-          GetFunctionAddress $0 AbortSurveySummary
-      ${EndIf}
-      ClearErrors
-      ${GetParameters} $1
-      ${GetOptions} "$1" "/UAC:" $2
-      ${If} ${Errors}
-        Call $0
-      ${Else}
-        UAC::ExecCodeSegment $0
-      ${EndIf}
-      
-      CustomAbort_finish:
-      Return
-    ${EndUnless}
-  ${EndIf}
-
-  MessageBox MB_YESNO|MB_ICONEXCLAMATION "$(MOZ_MUI_TEXT_ABORTWARNING)" \
-             IDYES +1 IDNO +2
-  Return
-  Abort
-FunctionEnd
-
-Function AbortSurveyWelcome
-  ExecShell "open" "${AbortSurveyURL}step1"
-FunctionEnd
-
-Function AbortSurveyOptions
-  ExecShell "open" "${AbortSurveyURL}step2"
-FunctionEnd
-
-Function AbortSurveyDirectory
-  ExecShell "open" "${AbortSurveyURL}step3"
-FunctionEnd
-
-Function AbortSurveyShortcuts
-  ExecShell "open" "${AbortSurveyURL}step4"
-FunctionEnd
-
-Function AbortSurveyStartMenu
-  ExecShell "open" "${AbortSurveyURL}step5"
-FunctionEnd
-
-Function AbortSurveySummary
-  ExecShell "open" "${AbortSurveyURL}step6"
-FunctionEnd
-
-################################################################################
-# Helper Functions
-
-Function AddQuickLaunchShortcut
-  CreateShortCut "$QUICKLAUNCH\${BrandFullName}.lnk" "$INSTDIR\${FileMainEXE}" "" "$INSTDIR\${FileMainEXE}" 0
-FunctionEnd
-
 Function CheckExistingInstall
-  ; If there is a pending file copy from a previous upgrade don't allow
+  ; If there is a pending file copy from a previous uninstall don't allow
   ; installing until after the system has rebooted.
   IfFileExists "$INSTDIR\${FileMainEXE}.moz-upgrade" +1 +4
-  MessageBox MB_YESNO|MB_ICONEXCLAMATION "$(WARN_RESTART_REQUIRED_UPGRADE)" IDNO +2
+  MessageBox MB_YESNO "$(WARN_RESTART_REQUIRED_UPGRADE)" IDNO +2
   Reboot
   Quit
 
   ; If there is a pending file deletion from a previous uninstall don't allow
   ; installing until after the system has rebooted.
   IfFileExists "$INSTDIR\${FileMainEXE}.moz-delete" +1 +4
-  MessageBox MB_YESNO|MB_ICONEXCLAMATION "$(WARN_RESTART_REQUIRED_UNINSTALL)" IDNO +2
+  MessageBox MB_YESNO "$(WARN_RESTART_REQUIRED_UNINSTALL)" IDNO +2
   Reboot
   Quit
 
   ${If} ${FileExists} "$INSTDIR\${FileMainEXE}"
     Banner::show /NOUNLOAD "$(BANNER_CHECK_EXISTING)"
-
     ${If} "$TmpVal" == "FoundMessageWindow"
       Sleep 5000
     ${EndIf}
-
     ${PushFilesToCheck}
-
     ; Store the return value in $TmpVal so it is less likely to be accidentally
     ; overwritten elsewhere.
     ${CheckForFilesInUse} $TmpVal
@@ -630,21 +625,12 @@ Function CheckExistingInstall
 FunctionEnd
 
 Function LaunchApp
-  ClearErrors
-  ${GetParameters} $0
-  ${GetOptions} "$0" "/UAC:" $1
-  ${If} ${Errors}
-    ${ManualCloseAppPrompt} "${WindowClass}" "$(WARN_MANUALLY_CLOSE_APP_LAUNCH)"
-    Exec "$INSTDIR\${FileMainEXE}"
-  ${Else}
-    GetFunctionAddress $0 LaunchAppFromElevatedProcess
-    UAC::ExecCodeSegment $0
-  ${EndIf}
+  GetFunctionAddress $0 LaunchAppFromElevatedProcess
+  UAC::ExecCodeSegment $0
 FunctionEnd
 
 Function LaunchAppFromElevatedProcess
   ${ManualCloseAppPrompt} "${WindowClass}" "$(WARN_MANUALLY_CLOSE_APP_LAUNCH)"
-
   ; Find the installation directory when launching using GetFunctionAddress
   ; from an elevated installer since $INSTDIR will not be set in this installer
   ${StrFilter} "${FileMainEXE}" "+" "" "" $R9
@@ -654,7 +640,7 @@ Function LaunchAppFromElevatedProcess
   ; Set our current working directory to the application's install directory
   ; otherwise the 7-Zip temp directory will be in use and won't be deleted.
   SetOutPath "$1"
-  Exec "$0"
+  Exec "$\"$0$\""
 FunctionEnd
 
 ################################################################################
@@ -672,24 +658,25 @@ FunctionEnd
 BrandingText " "
 
 ################################################################################
-# Page pre, show, and leave functions
+# Page pre and leave functions
 
 Function preWelcome
-  StrCpy $PageName "Welcome"
-  ${If} ${FileExists} "$EXEDIR\localized\distribution\modern-wizard.bmp"
+  ${If} ${FileExists} "$EXEDIR\core\distribution\modern-wizard.bmp"
     Delete "$PLUGINSDIR\modern-wizard.bmp"
-    CopyFiles /SILENT "$EXEDIR\localized\distribution\modern-wizard.bmp" "$PLUGINSDIR\modern-wizard.bmp"
+    CopyFiles /SILENT "$EXEDIR\core\distribution\modern-wizard.bmp" "$PLUGINSDIR\modern-wizard.bmp"
+  ${EndIf}
+FunctionEnd
+
+Function showLicense
+  ${If} ${FileExists} "$EXEDIR\core\distribution\modern-header.bmp"
+  ${AndIf} $hHeaderBitmap == ""
+    Delete "$PLUGINSDIR\modern-header.bmp"
+    CopyFiles /SILENT "$EXEDIR\core\distribution\modern-header.bmp" "$PLUGINSDIR\modern-header.bmp"
+    ${ChangeMUIHeaderImage} "$PLUGINSDIR\modern-header.bmp"
   ${EndIf}
 FunctionEnd
 
 Function preOptions
-  StrCpy $PageName "Options"
-  ${If} ${FileExists} "$EXEDIR\localized\distribution\modern-header.bmp"
-  ${AndIf} $hHeaderBitmap == ""
-    Delete "$PLUGINSDIR\modern-header.bmp"
-    CopyFiles /SILENT "$EXEDIR\localized\distribution\modern-header.bmp" "$PLUGINSDIR\modern-header.bmp"
-    ${ChangeMUIHeaderImage} "$PLUGINSDIR\modern-header.bmp"
-  ${EndIf}
   !insertmacro MUI_HEADER_TEXT "$(OPTIONS_PAGE_TITLE)" "$(OPTIONS_PAGE_SUBTITLE)"
   !insertmacro MUI_INSTALLOPTIONS_DISPLAY "options.ini"
 FunctionEnd
@@ -713,8 +700,52 @@ Function leaveOptions
   ${EndIf}
 FunctionEnd
 
+Function preComponents
+  ${CheckCustomCommon}
+  !insertmacro checkSuiteComponents
+  !insertmacro MUI_HEADER_TEXT "$(OPTIONAL_COMPONENTS_TITLE)" "$(OPTIONAL_COMPONENTS_SUBTITLE)"
+  !insertmacro MUI_INSTALLOPTIONS_DISPLAY "components.ini"
+FunctionEnd
+
+Function leaveComponents
+  ; If ChatZilla exists then it will be Field 2.
+  ; If ChatZilla doesn't exist then DOMi will be Field 2 (when ChatZilla and DOMi
+  ; don't exist, debugQA will be Field 2).
+  StrCpy $R1 2
+
+ ${If} ${FileExists} "$EXEDIR\optional\distribution\extensions\{59c81df5-4b7a-477b-912d-4e0fdf64e5f2}.xpi"
+    ${MUI_INSTALLOPTIONS_READ} $R0 "components.ini" "Field $R1" "State"
+    ; State will be 1 for checked and 0 for unchecked so we can use that to set
+    ; the section flags for installation.
+    SectionSetFlags ${CZ_IDX} $R0
+    IntOp $R1 $R1 + 1
+  ${Else}
+    SectionSetFlags ${CZ_IDX} 0 ; Disable install for chatzilla
+  ${EndIf}
+
+  ${If} ${FileExists} "$EXEDIR\optional\distribution\extensions\inspector@mozilla.org.xpi"
+    ${MUI_INSTALLOPTIONS_READ} $R0 "components.ini" "Field $R1" "State"
+    ; State will be 1 for checked and 0 for unchecked so we can use that to set
+    ; the section flags for installation.
+    SectionSetFlags ${DOMI_IDX} $R0
+    IntOp $R1 $R1 + 1
+  ${Else}
+    SectionSetFlags ${DOMI_IDX} 0 ; Disable install for DOMi
+  ${EndIf}
+
+  ${If} ${FileExists} "$EXEDIR\optional\distribution\extensions\debugQA@mozilla.org.xpi"
+    ${MUI_INSTALLOPTIONS_READ} $R0 "components.ini" "Field $R1" "State"
+    ; State will be 1 for checked and 0 for unchecked so we can use that to set
+    ; the section flags for installation.
+    SectionSetFlags ${DEBUG_IDX} $R0
+    IntOp $R1 $R1 + 1
+  ${Else}
+    SectionSetFlags ${DEBUG_IDX} 0 ; Disable install for debugQA
+  ${EndIf}
+
+FunctionEnd
+
 Function preDirectory
-  StrCpy $PageName "Directory"
   ${PreDirectoryCommon}
 FunctionEnd
 
@@ -726,7 +757,6 @@ Function leaveDirectory
 FunctionEnd
 
 Function preShortcuts
-  StrCpy $PageName "Shortcuts"
   ${CheckCustomCommon}
   !insertmacro MUI_HEADER_TEXT "$(SHORTCUTS_PAGE_TITLE)" "$(SHORTCUTS_PAGE_SUBTITLE)"
   !insertmacro MUI_INSTALLOPTIONS_DISPLAY "shortcuts.ini"
@@ -750,7 +780,6 @@ Function leaveShortcuts
 FunctionEnd
 
 Function preStartMenu
-  StrCpy $PageName "StartMenu"
   ; With the Unicode installer the path to the application's Start Menu
   ; directory relative to the Start Menu's Programs directory is written to the
   ; shortcuts log ini file and is used to set the default Start Menu directory.
@@ -790,8 +819,6 @@ Function leaveStartMenu
 FunctionEnd
 
 Function preSummary
-  StrCpy $PageName "Summary"
-  ; Setup the summary.ini file for the Custom Summary Page
   WriteINIStr "$PLUGINSDIR\summary.ini" "Settings" NumFields "3"
 
   WriteINIStr "$PLUGINSDIR\summary.ini" "Field 1" Type   "label"
@@ -813,65 +840,21 @@ Function preSummary
   WriteINIStr "$PLUGINSDIR\summary.ini" "Field 2" flags  "READONLY"
 
   WriteINIStr "$PLUGINSDIR\summary.ini" "Field 3" Type   "label"
+  WriteINIStr "$PLUGINSDIR\summary.ini" "Field 3" Text   "$(SUMMARY_CLICK)"
   WriteINIStr "$PLUGINSDIR\summary.ini" "Field 3" Left   "0"
   WriteINIStr "$PLUGINSDIR\summary.ini" "Field 3" Right  "-1"
   WriteINIStr "$PLUGINSDIR\summary.ini" "Field 3" Top    "130"
   WriteINIStr "$PLUGINSDIR\summary.ini" "Field 3" Bottom "150"
 
-  ${If} ${FileExists} "$INSTDIR\${FileMainEXE}"
-    WriteINIStr "$PLUGINSDIR\summary.ini" "Field 3" Text "$(SUMMARY_UPGRADE_CLICK)"
-    WriteINIStr "$PLUGINSDIR\summary.ini" "Settings" NextButtonText "$(UPGRADE_BUTTON)"
-  ${Else}
-    WriteINIStr "$PLUGINSDIR\summary.ini" "Field 3" Text "$(SUMMARY_INSTALL_CLICK)"
-    DeleteINIStr "$PLUGINSDIR\summary.ini" "Settings" NextButtonText
-  ${EndIf}
-
-
-  ; Remove the "Field 4" ini section in case the user hits back and changes the
-  ; installation directory which could change whether the make default checkbox
-  ; should be displayed.
-  DeleteINISec "$PLUGINSDIR\summary.ini" "Field 4"
-
-  ; Check if it is possible to write to HKLM
-  ClearErrors
-  WriteRegStr HKLM "Software\Mozilla" "${BrandShortName}InstallerTest" "Write Test"
-  ${Unless} ${Errors}
-    DeleteRegValue HKLM "Software\Mozilla" "${BrandShortName}InstallerTest"
-    ; Check if Firefox is already the handler for http. This is set on all
-    ; versions of Windows.
-    ${IsHandlerForInstallDir} "http" $R9
-    ${If} "$R9" != "true"
-      WriteINIStr "$PLUGINSDIR\summary.ini" "Settings" NumFields "4"
-      WriteINIStr "$PLUGINSDIR\summary.ini" "Field 4" Type   "checkbox"
-      WriteINIStr "$PLUGINSDIR\summary.ini" "Field 4" Text   "$(SUMMARY_TAKE_DEFAULTS)"
-      WriteINIStr "$PLUGINSDIR\summary.ini" "Field 4" Left   "0"
-      WriteINIStr "$PLUGINSDIR\summary.ini" "Field 4" Right  "-1"
-      WriteINIStr "$PLUGINSDIR\summary.ini" "Field 4" State  "1"
-      WriteINIStr "$PLUGINSDIR\summary.ini" "Field 4" Top    "32"
-      WriteINIStr "$PLUGINSDIR\summary.ini" "Field 4" Bottom "53"
-    ${EndIf}
-  ${EndUnless}
-
   ${If} "$TmpVal" == "true"
-    ; If there is already a Type entry in the "Field 4" section with a value of
-    ; checkbox then the set as the default browser checkbox is displayed and
-    ; this text must be moved below it.
-    ReadINIStr $0 "$PLUGINSDIR\summary.ini" "Field 4" "Type"
-    ${If} "$0" == "checkbox"
-      StrCpy $0 "5"
-      WriteINIStr "$PLUGINSDIR\summary.ini" "Field $0" Top    "53"
-      WriteINIStr "$PLUGINSDIR\summary.ini" "Field $0" Bottom "68"
-    ${Else}
-      StrCpy $0 "4"
-      WriteINIStr "$PLUGINSDIR\summary.ini" "Field $0" Top    "35"
-      WriteINIStr "$PLUGINSDIR\summary.ini" "Field $0" Bottom "50"
-    ${EndIf}
-    WriteINIStr "$PLUGINSDIR\summary.ini" "Settings" NumFields "$0"
+    WriteINIStr "$PLUGINSDIR\summary.ini" "Field 4" Type   "label"
+    WriteINIStr "$PLUGINSDIR\summary.ini" "Field 4" Text   "$(SUMMARY_REBOOT_REQUIRED_INSTALL)"
+    WriteINIStr "$PLUGINSDIR\summary.ini" "Field 4" Left   "0"
+    WriteINIStr "$PLUGINSDIR\summary.ini" "Field 4" Right  "-1"
+    WriteINIStr "$PLUGINSDIR\summary.ini" "Field 4" Top    "35"
+    WriteINIStr "$PLUGINSDIR\summary.ini" "Field 4" Bottom "45"
 
-    WriteINIStr "$PLUGINSDIR\summary.ini" "Field $0" Type   "label"
-    WriteINIStr "$PLUGINSDIR\summary.ini" "Field $0" Text   "$(SUMMARY_REBOOT_REQUIRED_INSTALL)"
-    WriteINIStr "$PLUGINSDIR\summary.ini" "Field $0" Left   "0"
-    WriteINIStr "$PLUGINSDIR\summary.ini" "Field $0" Right  "-1"
+    WriteINIStr "$PLUGINSDIR\summary.ini" "Settings" NumFields "4"
   ${EndIf}
 
   !insertmacro MUI_HEADER_TEXT "$(SUMMARY_PAGE_TITLE)" "$(SUMMARY_PAGE_SUBTITLE)"
@@ -887,6 +870,11 @@ Function preSummary
 FunctionEnd
 
 Function leaveSummary
+  ${If} $InstallType != ${INSTALLTYPE_CUSTOM}
+    ; Set DOM Inspector, ChatZilla to be installed
+    SectionSetFlags ${DOMI_IDX} 1
+    SectionSetFlags ${CZ_IDX} 1
+  ${EndIf}
   ; Try to delete the app executable and if we can't delete it try to find the
   ; app's message window and prompt the user to close the app. This allows
   ; running an instance that is located in another directory. If for whatever
@@ -902,7 +890,6 @@ FunctionEnd
 ; When we add an optional action to the finish page the cancel button is
 ; enabled. This disables it and leaves the finish button as the only choice.
 Function preFinish
-  StrCpy $PageName ""
   ${EndInstallLog} "${BrandFullName}"
   !insertmacro MUI_INSTALLOPTIONS_WRITE "ioSpecial.ini" "settings" "cancelenabled" "0"
 FunctionEnd
@@ -911,16 +898,55 @@ FunctionEnd
 # Initialization Functions
 
 Function .onInit
-  StrCpy $PageName ""
   StrCpy $LANGUAGE 0
-  ${SetBrandNameVars} "$EXEDIR\localized\distribution\setup.ini"
+  ${SetBrandNameVars} "$EXEDIR\core\distribution\setup.ini"
 
-  ${InstallOnInitCommon} "$(WARN_MIN_SUPPORTED_OS_MSG)"
+  ; Don't install on systems that don't support SSE2. The parameter value of
+  ; 10 is for PF_XMMI64_INSTRUCTIONS_AVAILABLE which will check whether the
+  ; SSE2 instruction set is available. Result returned in $R7.
+  System::Call "kernel32::IsProcessorFeaturePresent(i 10)i .R7"
+
+  ; Windows XP SP1 and lower are not supported.
+  ${If} ${AtMostWinXP}
+    ${IfNot} ${ISWinXP}
+    ${OrIfNot} ${AtLeastServicePack} 2
+      ${If} "$R7" == "0"
+        strCpy $R7 "$(WARN_MIN_SUPPORTED_OSVER_CPU_MSG)"
+      ${Else}
+        strCpy $R7 "$(WARN_MIN_SUPPORTED_OSVER_MSG)"
+      ${EndIf}
+      MessageBox MB_OKCANCEL|MB_ICONSTOP "$R7" IDCANCEL +2
+      ExecShell "open" "${URLSystemRequirements}"
+      Quit
+    ${EndIf}
+  ${EndIf}
+
+  ; SSE2 CPU support
+  ${If} "$R7" == "0"
+    MessageBox MB_OKCANCEL|MB_ICONSTOP "$(WARN_MIN_SUPPORTED_CPU_MSG)" IDCANCEL +2
+    ExecShell "open" "${URLSystemRequirements}"
+    Quit
+  ${EndIf}
+
+!ifdef HAVE_64BIT_BUILD
+  ${Unless} ${RunningX64}
+  ${AndUnless} ${AtLeastWin7}
+    MessageBox MB_OKCANCEL|MB_ICONSTOP "$(WARN_MIN_SUPPORTED_OSVER_MSG)" IDCANCEL +2
+    ExecShell "open" "${URLSystemRequirements}"
+    Quit
+  ${EndUnless}
+  SetRegView 64
+!endif
+
+  ${InstallOnInitCommon} "$(WARN_MIN_SUPPORTED_OSVER_CPU_MSG)"
+
 
   !insertmacro InitInstallOptionsFile "options.ini"
+  !insertmacro InitInstallOptionsFile "components.ini"
   !insertmacro InitInstallOptionsFile "shortcuts.ini"
   !insertmacro InitInstallOptionsFile "summary.ini"
 
+  ; Setup the options.ini file for the Custom Options Page
   WriteINIStr "$PLUGINSDIR\options.ini" "Settings" NumFields "5"
 
   WriteINIStr "$PLUGINSDIR\options.ini" "Field 1" Type   "label"
@@ -961,6 +987,9 @@ Function .onInit
   WriteINIStr "$PLUGINSDIR\options.ini" "Field 5" Top    "67"
   WriteINIStr "$PLUGINSDIR\options.ini" "Field 5" Bottom "87"
 
+  ; Setup the components.ini file for the Components page
+  !insertmacro createSuiteComponentsINI
+
   ; Setup the shortcuts.ini file for the Custom Shortcuts Page
   WriteINIStr "$PLUGINSDIR\shortcuts.ini" "Settings" NumFields "4"
 
@@ -996,11 +1025,12 @@ Function .onInit
   WriteINIStr "$PLUGINSDIR\shortcuts.ini" "Field 4" Bottom "70"
   WriteINIStr "$PLUGINSDIR\shortcuts.ini" "Field 4" State  "1"
 
-  ; There must always be nonlocalized and localized directories.
-  ${GetSize} "$EXEDIR\nonlocalized\" "/S=0K" $R5 $R7 $R8
-  ${GetSize} "$EXEDIR\localized\" "/S=0K" $R6 $R7 $R8
-  IntOp $R8 $R5 + $R6
-  SectionSetSize ${APP_IDX} $R8
+  ; There must always be a core directory
+  ${GetSize} "$EXEDIR\core\" "/S=0K" $R5 $R7 $R8
+  ; Add 1024 Kb to the diskspace requirement since the installer makes a copy
+  ; of the MAPI dll's (around 20 Kb)... also, see Bug 434338.
+  IntOp $R5 $R5 + 1024
+  SectionSetSize ${APP_IDX} $R5
 
   ; Initialize $hHeaderBitmap to prevent redundant changing of the bitmap if
   ; the user clicks the back button

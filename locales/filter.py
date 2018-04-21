@@ -1,41 +1,42 @@
-def test(mod, path, entity = None):
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+def test(mod, path, entity=None):
   import re
-  # ignore anything but Firefox
+  # ignore anything but SeaMonkey
   if mod not in ("netwerk", "dom", "toolkit", "security/manager",
-                 "browser", "extensions/reporter", "extensions/spellcheck",
-                 "other-licenses/branding/firefox"):
+                 "devtools/shared", "devtools/client",
+                 "editor/ui", "suite", "services/sync"):
+    return "ignore"
+  # ignore temporary files, hiden files and files from rejects
+  if (re.match(r".*?\/[.#].+", path) or
+      re.match(r".*~$", path) or
+      re.match(r".+\.(orig|rej)", path)):
+    return "ignore"
+  if mod not in ("suite"):
+    # we only have exceptions for suite
+    return "error"
+  if entity is None:
+    # missing and obsolete files
+    return ("ignore" if (re.match(r"searchplugins\/.+\.xml", path) or
+                         re.match(r"chrome\/common\/help\/images\/[A-Za-z-_]+\.[a-z]+", path))
+            else "error")
+  if path == "defines.inc":
+    return ("ignore" if (entity == "MOZ_LANGPACK_CONTRIBUTORS")
+            else "error")
+  if path == "profile/bookmarks.extra" or path == "profile/panels.extra":
+    # ignore files for additional bookmarks and panels
     return "ignore"
 
-  if mod != "browser" and mod != "extensions/spellcheck":
-    # we only have exceptions for browser and extensions/spellcheck
-    return "error"
-  if not entity:
-    if mod == "extensions/spellcheck":
-      return "ignore"
-    # browser
-    return (re.match(r"searchplugins\/.+\.xml", path) and
-            "ignore" or "error")
-            
-  if mod == "extensions/spellcheck":
-    # l10n ships en-US dictionary or something, do compare
-    return "error"
+  if path == "chrome/common/region.properties":
+    return ("ignore" if (re.match(r"browser\.search\.order\.[1-9]", entity))
+            else "error")
 
-  # just browser remains
-  if path == "defines.inc":
-    return (entity == "MOZ_LANGPACK_CONTRIBUTORS") and "ignore" or "error"
-
-  # Ignore Lorentz strings, at least temporarily
-  if path == 'chrome/browser/browser.properties':
-    if entity.startswith('crashedpluginsMessage.'): return "report"
-  if path == 'chrome/browser/preferences/advanced.dtd':
-    if entity.startswith('submitCrashes'): return "report"
-
-  if path != "chrome/browser-region/region.properties":
+  if path != "chrome/browser/region.properties":
     # only region.properties exceptions remain, compare all others
     return "error"
-  
-  return ((re.match(r"browser\.search\.order\.[1-9]", entity) or
-              re.match(r"browser\.contentHandlers\.types\.[0-5]", entity) or
-              re.match(r"gecko\.handlerService\.schemes\.", entity) or
-              re.match(r"gecko\.handlerService\.defaultHandlersVersion", entity))
-          and "ignore" or "report")
+
+  return ("ignore"
+          if (re.match(r"browser\.contentHandlers\.types\.[0-5]", entity))
+          else "error")

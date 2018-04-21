@@ -1,47 +1,87 @@
 #filter emptyLines
 
-# LOCALIZATION NOTE: The 'en-US' strings in the URLs will be replaced with
-# your locale code, and link to your translated pages as soon as they're 
-# live.
+# LOCALIZATION NOTE: The 'en-US' strings in some URLs will be replaced with
+# your locale code, and link to your translated pages as soon as they're live.
 
 #define bookmarks_title Bookmarks
 #define bookmarks_heading Bookmarks
 
-# LOCALIZATION NOTE (bookmarks_addons):
-# link title for https://en-US.add-ons.mozilla.com/en-US/firefox/bookmarks/
-#define bookmarks_addons Get Bookmark Add-ons
+#define personal_toolbarfolder Personal Toolbar Folder
 
-#define bookmarks_toolbarfolder Bookmarks Toolbar Folder
-#define bookmarks_toolbarfolder_description Add bookmarks to this folder to see them displayed on the Bookmarks Toolbar
+#define seamonkey_and_mozilla SeaMonkey and Mozilla
 
-# LOCALIZATION NOTE (getting_started):
-# link title for http://en-US.www.mozilla.com/en-US/firefox/central/
-#define getting_started Getting Started
+# LOCALIZATION NOTE (seamonkey):
+# link title for http://www.seamonkey-project.org/ (in the personal toolbar)
+#define seamonkey SeaMonkey
 
-# LOCALIZATION NOTE (latest_headlines):
-# link title for the live bookmarks sample, a redirect on
-# http://en-US.fxfeeds.mozilla.com/en-US/firefox/headlines.xml
-# Changing the redirect is subject to approval of l10n-drivers.
-#define latest_headlines Latest Headlines
+# LOCALIZATION NOTE (seamonkey_long):
+# link title for http://www.seamonkey-project.org/ (in normal bookmarks)
+#define seamonkey_long The SeaMonkey Project
 
-# LOCALIZATION NOTE (firefox_heading):
-# Firefox links folder name
-#define firefox_heading Mozilla Firefox
+# LOCALIZATION NOTE (mozilla_org):
+# link title for http://www.mozilla.org/ (in the personal toolbar)
+#define mozilla_org mozilla.org
 
-# LOCALIZATION NOTE (firefox_help):
-# link title for http://en-US.www.mozilla.com/en-US/firefox/help/
-#define firefox_help Help and Tutorials
+# LOCALIZATION NOTE (mozilla_org_long):
+# link title for http://www.mozilla.org/ (in normal bookmarks)
+#define mozilla_org_long The Mozilla Organization
 
-# LOCALIZATION NOTE (firefox_customize):
-# link title for http://en-US.www.mozilla.com/en-US/firefox/customize/
-#define firefox_customize Customize Firefox
+# LOCALIZATION NOTE (mozilla_projects):
+# link title for http://www.mozilla.org/projects/
+#define mozilla_projects Mozilla Projects
 
-# LOCALIZATION NOTE (firefox_community):
-# link title for http://en-US.www.mozilla.com/en-US/firefox/community/
-#define firefox_community Get Involved
+# LOCALIZATION NOTE (mozilla_about):
+# link title for http://www.mozilla.org/about/
+#define mozilla_about About Mozilla
 
-# LOCALIZATION NOTE (firefox_about):
-# link title for http://en-US.www.mozilla.com/en-US/firefox/about/
-#define firefox_about About Us
+#define extend_seamonkey Extending SeaMonkey
+
+# LOCALIZATION NOTE (seamonkey_addons):
+# link title for https://addons.mozilla.org/en-US/seamonkey/
+#define seamonkey_addons SeaMonkey Add-ons
+
+# LOCALIZATION NOTE (seamonkey_themes):
+# link title for https://addons.mozilla.org/en-US/seamonkey/themes
+#define seamonkey_themes SeaMonkey Themes
+
+# LOCALIZATION NOTE (seamonkey_dictionaries):
+# link title for https://addons.mozilla.org/en-US/seamonkey/dictionaries
+#define seamonkey_dictionaries Spell Checking Dictionaries
+
+# LOCALIZATION NOTE (seamonkey_plugins):
+# link title for https://addons.mozilla.org/en-US/seamonkey/plugins
+#define seamonkey_plugins Plugins for SeaMonkey
+
+# LOCALIZATION NOTE (mozdev):
+# link title for http://www.mozdev.org/
+#define mozdev mozdev.org
+
+# LOCALIZATION NOTE (mozdev_seamonkey):
+# link title for http://www.mozdev.org/projects/applications/SeaMonkey.html
+#define mozdev_seamonkey SeaMonkey Extensions from mozdev.org
+
+#define community_support Community &amp; Support
+
+# LOCALIZATION NOTE (seamonkey_community):
+# link title for http://www.seamonkey-project.org/community
+#define seamonkey_community SeaMonkey Community
+
+# LOCALIZATION NOTE (mozillazine):
+# link title for http://www.mozillazine.org/
+#define mozillazine mozillaZine
+
+# LOCALIZATION NOTE (seamonkey_support):
+# link title for the mozillaZine SeaMonkey Support forum
+#define seamonkey_support SeaMonkey Support Forum (mozillaZine)
+
+# LOCALIZATION NOTE (seamonkey_l10n):
+# insert full bookmark line for localized SeaMonkey page (personal toolbar)
+# e.g. #define seamonkey_l10n <DT><A HREF="http://www.seamonkey.tlh/">SeaMonkey tlhIngan</a>
+#define seamonkey_l10n  
+
+# LOCALIZATION NOTE (seamonkey_l10n_long):
+# insert full bookmark line for localized SeaMonkey page (normal bookmark)
+# e.g. #define seamonkey_l10n_long <DT><A HREF="http://www.seamonkey.tld/">tlhIngan Hol SeaMonkey</a>
+#define seamonkey_l10n_long  
 
 #unfilter emptyLines
