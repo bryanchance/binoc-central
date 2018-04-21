@@ -17,7 +17,7 @@
         with minimum and maximum supported versions. -->
     <em:targetApplication>
       <Description>
-        <em:id>{92650c4d-4b8e-4d2a-b7eb-24ecf4f6b63a}</em:id>
+        <em:id>@MOZ_APP_ID@</em:id>
         <em:minVersion>@MOZ_APP_VERSION@</em:minVersion>
         <em:maxVersion>@MOZ_APP_VERSION@</em:maxVersion>
       </Description>
