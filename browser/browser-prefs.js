@@ -18,7 +18,7 @@
  */
 
 pref("startup.homepage_override_url","chrome://navigator-region/locale/region.properties");
-pref("general.skins.selectedSkin", "classic/1.0");
+pref("general.skins.selectedSkin", "modern/1.0");
 
 pref("browser.chromeURL","chrome://navigator/content/navigator.xul");
 pref("browser.hiddenWindowChromeURL", "chrome://navigator/content/hiddenWindow.xul");
@@ -89,7 +89,7 @@ pref("browser.dom.window.console.enabled", false);
 pref("browser.findbar.enabled", true);
 
 // Use doorhanger notifications instead of the notification bar
-pref("browser.doorhanger.enabled", true);
+pref("browser.doorhanger.enabled", false);
 
 // search engines URL
 pref("browser.search.searchEnginesURL", "https://addons.mozilla.org/%LOCALE%/%APP%/search/?atype=4");
@@ -106,7 +106,7 @@ pref("browser.search.order.2", "chrome://communicator-region/locale/region.prope
 pref("browser.search.order.3", "chrome://communicator-region/locale/region.properties");
 
 // Search (side)bar results always open in a new tab.
-pref("browser.search.openintab", false);
+pref("browser.search.openintab", true);
 
 // Invoking a search reveals the sidebar panel.
 pref("browser.search.opensidebarsearchpanel", false);
@@ -236,7 +236,7 @@ pref("browser.tabs.opentabfor.middleclick", true);
 pref("browser.tabs.opentabfor.urlbar", true);
 pref("browser.tabs.tooltippreview.enable", true);
 pref("browser.tabs.tooltippreview.width", 300);
-pref("browser.tabs.autoHide", true);
+pref("browser.tabs.autoHide", false);
 pref("browser.tabs.forceHide", false);
 pref("browser.tabs.closeWindowWithLastTab", true);
 pref("browser.tabs.warnOnClose", true);
@@ -262,7 +262,7 @@ pref("browser.tabs.tabClipWidth", 140);
 // 1  on all tabs until tabClipWidth is reached, then active tab only
 // 2  no close buttons at all
 // 3  at the end of the tabstrip
-pref("browser.tabs.closeButtons", 3);
+pref("browser.tabs.closeButtons", 0);
 
 // Mouse wheel action when over the tab bar:
 // false  The mouse wheel scrolls the whole tab bar like Firefox (default).
@@ -333,10 +333,10 @@ pref("browser.offline-apps.notify", true);
 pref("browser.formfill.expire_days",        180);
 
 // Handle mail/news URLs internally by default...
-pref("network.protocol-handler.external.mailto", false); // for mail
-pref("network.protocol-handler.external.news", false);   // for news
-pref("network.protocol-handler.external.snews", false);  // for secure news
-pref("network.protocol-handler.external.nntp", false);   // also news
+pref("network.protocol-handler.external.mailto", true); // for mail
+pref("network.protocol-handler.external.news", true);   // for news
+pref("network.protocol-handler.external.snews", true);  // for secure news
+pref("network.protocol-handler.external.nntp", true);   // also news
 
 // ...but still show the dialog at least the first time if switched to external
 pref("network.protocol-handler.warn-external.mailto", true);
