@@ -69,7 +69,7 @@ PP_TARGETS += SEARCH_PLUGINS
 
 include $(topsrcdir)/config/rules.mk
 
-include $(topsrcdir)/mozilla/toolkit/locales/l10n.mk
+include $(topsrcdir)/toolkit/locales/l10n.mk
 
 $(STAGEDIST): $(DIST)/branding
 
@@ -118,7 +118,6 @@ libs-%:
 	$(NSINSTALL) -D $(DIST)/install
 	@$(MAKE) -C $(DEPTH)/toolkit/locales libs-$*
 	@$(MAKE) -C $(DEPTH)/services/sync/locales AB_CD=$* XPI_NAME=locale-$*
-	@$(MAKE) -C ../../editor/ui/locales AB_CD=$* XPI_NAME=locale-$*
 	@$(MAKE) -C $(DEPTH)/extensions/spellcheck/locales AB_CD=$* XPI_NAME=locale-$*
 	@$(MAKE) -C $(DEPTH)/intl/locales AB_CD=$* XPI_NAME=locale-$*
 	@$(MAKE) -C $(DEPTH)/devtools/client/locales AB_CD=$* XPI_NAME=locale-$*
@@ -135,7 +134,7 @@ repackage-win32-installer: $(call ESCAPE_WILDCARD,$(WIN32_INSTALLER_IN)) $(SUBMA
 	  ZIP_IN='$(WIN32_INSTALLER_IN)' \
 	  ZIP_OUT='$(WIN32_INSTALLER_OUT)' \
 	  SFX_HEADER='$(PWD)/../installer/windows/l10ngen/7zSD.sfx \
-	              $(_ABS_SRCDIR)/suite/installer/windows/app.tag'
+	              $(_ABS_SRCDIR)/application/navigator/installer/windows/app.tag'
 
 ifeq (WINNT,$(OS_ARCH))
 repackage-win32-installer-%: libs-% $(STAGEDIST)
@@ -202,7 +201,7 @@ ident:
 merge-%:
 ifdef LOCALE_MERGEDIR
 	$(RM) -rf $(LOCALE_MERGEDIR)
-	$(topsrcdir)/mozilla/mach compare-locales --merge-dir $(LOCALE_MERGEDIR) --l10n-ini $(srcdir)/l10n.ini $*
+	$(topsrcdir)/mach compare-locales --merge-dir $(LOCALE_MERGEDIR) --l10n-ini $(srcdir)/l10n.ini $*
 endif
 	@echo
 

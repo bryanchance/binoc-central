@@ -5,17 +5,12 @@
 
 CONFIGURE_SUBST_FILES += ['installer/Makefile']
 
-# This should match /suite/installer/moz.build.
-if 'pre' in CONFIG['MOZ_APP_VERSION'] or 'a' in CONFIG['MOZ_APP_VERSION']:
-    DIRS += ['debugQA']
-
 DIRS += [
     'browser',
     'common',
     'feeds/public',
     'feeds/src',
     'locales',
-    'mailnews',
     'modules',
     'themes/classic',
     'themes/modern',
@@ -23,14 +18,13 @@ DIRS += [
     'security',
     'shell/public',
     'shell/src',
-    'smile',
 ]
 
 if CONFIG['MAKENSISU']:
     DIRS += ['installer/windows']
 
 if CONFIG['MOZ_BUNDLED_FONTS']:
-    DIRS += ['/mozilla/browser/fonts']
+    DIRS += ['../palemoon/fonts']
 
 # app is always last as it packages up the built files on mac.
 DIRS += [

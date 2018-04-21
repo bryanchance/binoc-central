@@ -9,7 +9,6 @@ Components.utils.import("resource://gre/modules/Services.jsm");
 Components.utils.import("resource://gre/modules/AddonManager.jsm");
 Components.utils.import("resource://gre/modules/LoginManagerParent.jsm");
 Components.utils.import("resource:///modules/Sanitizer.jsm");
-Components.utils.import("resource:///modules/mailnewsMigrator.js");
 
 XPCOMUtils.defineLazyModuleGetter(this, "NetUtil",
                                   "resource://gre/modules/NetUtil.jsm");
@@ -354,7 +353,6 @@ SuiteGlue.prototype = {
   _onProfileStartup: function()
   {
     this._migrateUI();
-    migrateMailnews(); // mailnewsMigrator.js
 
     Sanitizer.checkSettings();
     Sanitizer.doPendingSanitize();

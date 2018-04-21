@@ -17,13 +17,12 @@ endif
 MOZ_PKG_DUPEFLAGS = \
 	-w \
 	-f $(srcdir)/allowed-dupes.mn \
-	-f $(MOZILLA_DIR)/browser/installer/allowed-dupes.mn \
+	-f $(topsrcdir)/browser/installer/allowed-dupes.mn \
 	$(NULL)
 
 MOZ_NONLOCALIZED_PKG_LIST = \
 	xpcom \
 	browser \
-	mail \
 	$(NULL)
 
 MOZ_LOCALIZED_PKG_LIST = \
@@ -221,7 +220,7 @@ DEFINES += -DMOZ_OMNIJAR=1
 endif
 
 libs::
-	$(MAKE) -C $(DEPTH)/suite/locales langpack
+	$(MAKE) -C $(DEPTH)/application/navigator/locales langpack
 
 ifeq (WINNT,$(OS_ARCH))
 PKGCOMP_FIND_OPTS =

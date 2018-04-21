@@ -10,10 +10,10 @@ SOURCES += [
 XPCOMBinaryComponent('suite')
 
 LOCAL_INCLUDES += [
-    '/suite/feeds/src',
-    '/suite/profile',
-    '/suite/profile/migration/src',
-    '/suite/shell/src',
+    '../feeds/src',
+    '../profile',
+    '../profile/migration/src',
+    '../shell/src',
 ]
 
 USE_LIBS += [
