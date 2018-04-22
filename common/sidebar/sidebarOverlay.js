@@ -1607,7 +1607,7 @@ function SidebarBroadcastersToRDF()
   // Translation rules to translate between new broadcaster id and old RDF id.
   const TRANSLATE = {viewBookmarksSidebar:   "bookmarks",
                      viewHistorySidebar:     "history",
-                     viewSearchSidebar:      "search",
+                     viewSearchSidebar:      "search"};
   const URN_PREFIX = "urn:sidebar:panel:";
 
   const RDFCU = Components.classes['@mozilla.org/rdf/container-utils;1']

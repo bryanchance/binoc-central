@@ -771,30 +771,6 @@ FeedWriter.prototype = {
           handlers[0].doCommand();
         }
         break;
-      case "client":
-        try {
-          this._selectedApp =
-            Services.prefs.getComplexValue(getPrefAppForType(feedType),
-                                           Components.interfaces.nsILocalFile);
-        }
-        catch(ex) {
-          this._selectedApp = null;
-        }
-
-        if (this._selectedApp) {
-          this._initMenuItemWithFile(this._selectedAppMenuItem,
-                                     this._selectedApp);
-          this._selectedAppMenuItem.hidden = false;
-          this._selectedAppMenuItem.doCommand();
-
-          // Only show the default reader menuitem if the default reader
-          // isn't the selected application
-          if (this._defaultSystemReader) {
-            var shouldHide = this._defaultSystemReader.path == this._selectedApp.path;
-            this._defaultHandlerMenuItem.hidden = shouldHide;
-          }
-          break;
-        }
        case "bookmarks":
          var liveBookmarksMenuItem = this._getUIElement("liveBookmarksMenuItem");
          if (liveBookmarksMenuItem)
@@ -802,10 +778,10 @@ FeedWriter.prototype = {
          break;
       // fall through if this._selectedApp is null
       default:
-        var messengerFeedsMenuItem = this._getUIElement("messengerFeedsMenuItem");
-        if (messengerFeedsMenuItem)
-          messengerFeedsMenuItem.doCommand();
-        break;
+         var liveBookmarksMenuItem = this._getUIElement("liveBookmarksMenuItem");
+         if (liveBookmarksMenuItem)
+           liveBookmarksMenuItem.doCommand();
+         break;
     }
   },
 
