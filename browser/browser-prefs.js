@@ -262,7 +262,7 @@ pref("browser.tabs.tabClipWidth", 140);
 // 1  on all tabs until tabClipWidth is reached, then active tab only
 // 2  no close buttons at all
 // 3  at the end of the tabstrip
-pref("browser.tabs.closeButtons", 0);
+pref("browser.tabs.closeButtons", 3);
 
 // Mouse wheel action when over the tab bar:
 // false  The mouse wheel scrolls the whole tab bar like Firefox (default).
