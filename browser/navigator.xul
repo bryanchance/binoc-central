@@ -191,7 +191,9 @@
              grippytooltiptext="&navigationToolbar.tooltip;"
              fullscreentoolbar="true" customizable="true"
              toolbarname="&navbarCmd.label;" accesskey="&navbarCmd.accesskey;"
-             defaultset="back-button,forward-button,reload-button,stop-button,nav-bar-inner,search-button-container,print-button,throbber-box,window-controls"
+             defaultset="back-button,forward-button,reload-button,stop-button,nav-bar-inner,search-container,throbber-box,window-controls"
+             mode="icons"
+             defaultmode="icons"
              context="toolbar-context-menu">
 
       <hbox id="window-controls" hidden="true" fullscreencontrol="true">
@@ -232,7 +234,7 @@
     <toolbarpalette id="BrowserToolbarPalette">
 
       <!-- Nav bar buttons -->
-      <toolbarbutton id="back-button" type="menu-button"
+      <toolbarbutton id="back-button"
                      class="toolbarbutton-1 chromeclass-toolbar-additional"
                      label="&backButton.label;"
                      oncommand="if (event.target==this) BrowserBack(event); else gotoHistoryIndex(event);"
@@ -243,7 +245,7 @@
         <menupopup context="" onpopupshowing="BrowserBackMenu(event);"/>
       </toolbarbutton>
 
-      <toolbarbutton id="forward-button" type="menu-button"
+      <toolbarbutton id="forward-button"
                      class="toolbarbutton-1 chromeclass-toolbar-additional"
                      label="&forwardButton.label;"
                      oncommand="if (event.target==this) BrowserForward(event); else gotoHistoryIndex(event);"
