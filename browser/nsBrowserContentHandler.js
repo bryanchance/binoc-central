@@ -294,22 +294,10 @@ var nsBrowserContentHandler = {
           handURIToExistingBrowser(uri, location, features);
           break;
 
-        case "mailto":
-          openWindow(null, "chrome://messenger/content/messengercompose/messengercompose.xul", features, RegExp.$2);
-          break;
-
         case "xfedocommand":
           switch (RegExp.$2.toLowerCase()) {
           case "openbrowser":
             openWindow(null, getBrowserURL(), features, RegExp.$3 || getURLToLoad());
-            break;
-
-          case "openinbox":
-            openWindow(null, "chrome://messenger/content", features);
-            break;
-
-          case "composemessage":
-            openWindow(null, "chrome://messenger/content/messengercompose/messengercompose.xul", features, RegExp.$3);
             break;
 
           default:

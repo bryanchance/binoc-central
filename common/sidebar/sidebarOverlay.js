@@ -1608,7 +1608,6 @@ function SidebarBroadcastersToRDF()
   const TRANSLATE = {viewBookmarksSidebar:   "bookmarks",
                      viewHistorySidebar:     "history",
                      viewSearchSidebar:      "search",
-                     viewAddressbookSidebar: "addressbook"};
   const URN_PREFIX = "urn:sidebar:panel:";
 
   const RDFCU = Components.classes['@mozilla.org/rdf/container-utils;1']

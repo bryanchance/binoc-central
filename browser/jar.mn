@@ -14,8 +14,6 @@ comm.jar:
    content/navigator/linkToolbarItem.js
    content/navigator/linkToolbarOverlay.js
    content/navigator/linkToolbarOverlay.xul
-   content/navigator/mailNavigatorOverlay.js
-   content/navigator/mailNavigatorOverlay.xul
    content/navigator/metadata.js
    content/navigator/metadata.xul
    content/navigator/navigator.css

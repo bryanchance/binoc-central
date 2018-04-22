@@ -43,13 +43,6 @@
                  sidebartitle="&sidebar.search.label;"
                  sidebarurl="chrome://communicator/content/search/search-panel.xul"
                  oncommand="toggleSidebar('viewSearchSidebar');"/>
-    <broadcaster id="viewAddressbookSidebar"
-                 autoCheck="false"
-                 type="checkbox"
-                 group="sidebar"
-                 sidebartitle="&sidebar.client-addressbook.label;"
-                 sidebarurl="chrome://messenger/content/addressbook/addressbook-panel.xul"
-                 oncommand="toggleSidebar('viewAddressbookSidebar');"/>
   </broadcasterset>
 
   <command id="toggleSidebar" oncommand="SidebarShowHide();"/>

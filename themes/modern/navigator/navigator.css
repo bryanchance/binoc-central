@@ -385,16 +385,19 @@ toolbar[iconsize=small][mode="icons"] #print-button > .toolbarbutton-menubutton-
   -moz-box-align: center;
   margin-top: 7px;
   margin-bottom: 3px;
+/*
   border-top: 2px solid;
   border-bottom: 2px solid;
   -moz-border-top-colors: #A2AFBD #EBF4FF;
   -moz-border-right-colors: #D1D9E0 #A2AFBD;
   -moz-border-bottom-colors: #CFD7DE #939EAA;
   -moz-border-left-colors: #9FABB9 #D2DAE1;
+*/
   padding: 0px;
   min-width: 0px;
 }
 
+/*
 .nav-bar-first,
 toolbarpaletteitem > .nav-bar-class {
   margin-inline-start: 5px;
@@ -424,6 +427,7 @@ toolbarpaletteitem > .nav-bar-class:-moz-locale-dir(rtl) {
   border-bottom-right-radius: 3px;
   border-top-right-radius: 3px;
 }
+*/
 
 toolbar[mode="text"] > .nav-bar-class,
 toolbar[iconsize="small"] > .nav-bar-class,
