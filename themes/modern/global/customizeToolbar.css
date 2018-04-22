@@ -4,6 +4,8 @@
 
 window,
 dialog {
+  width: 568px;
+  min-width: 568px;
   padding: 7px 5px 5px 5px;
 }
 

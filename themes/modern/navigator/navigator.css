@@ -865,6 +865,7 @@ toolbar[mode="text"] toolbarbutton.chevron > .toolbarbutton-icon {
 #status-bar {
   border-top: none;
   min-width: 1px;
+  min-height: 22px;
 }
 
 #security-button {
