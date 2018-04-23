@@ -30,6 +30,7 @@ What features will be included in the Navigator
 * XUL Overlay and Bootstrap (Restartless) Extension Support
 * Complete Themeing Support
 * Open Search Engine Providers
+* Windows and Linux support
 * TBD
 
 What will *NOT* be included in the Navigator
@@ -44,4 +45,5 @@ What will *NOT* be included in the Navigator
 * Web Developer tools beyond an Error Console and perhaps DOM Inspector
 * Personas/Lightweight Themes/Toolbar Backgrounds
 * Language Packs
+* Support for the Macintosh
 * TBD
