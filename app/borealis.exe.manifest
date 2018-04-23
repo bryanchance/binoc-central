@@ -3,10 +3,10 @@
 <assemblyIdentity
         version="1.0.0.0"
         processorArchitecture="*"
-        name="SeaMonkey"
+        name="Borealis"
         type="win32"
 />
-<description>SeaMonkey</description>
+<description>Borealis</description>
 <dependency>
         <dependentAssembly>
                 <assemblyIdentity
