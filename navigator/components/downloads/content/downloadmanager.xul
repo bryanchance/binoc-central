@@ -330,6 +330,7 @@
           <menuitem id="dlMenu_find"
                     label="&search.label;"
                     accesskey="&search.accesskey;"
+                    hidden="true"
                     command="cmd_search_focus"
                     key="key_search_focus"/>
           <menuseparator/>
@@ -342,18 +343,19 @@
              id="downloadToolbar"
              align="center"
              grippytooltiptext="&searchBar.tooltip;">
-      <button id="clearListButton" command="cmd_clearList"
-              label="&cmd.clearList.label;"
-              accesskey="&cmd.clearList.accesskey;"
-              tooltiptext="&cmd.clearList.tooltip;"/>
-      <toolbarspring/>
       <textbox id="search-box"
                clickSelectsAll="true"
                type="search"
+               hidden="true"
                aria-controls="downloadTree"
                class="compact"
                placeholder="&search.placeholder;"
                oncommand="searchDownloads(this.value);"/>
+      <spacer flex="1"/>
+      <button id="clearListButton" command="cmd_clearList"
+              label="&cmd.clearList.label;"
+              accesskey="&cmd.clearList.accesskey;"
+              tooltiptext="&cmd.clearList.tooltip;"/>
     </toolbar>
   </toolbox>
 

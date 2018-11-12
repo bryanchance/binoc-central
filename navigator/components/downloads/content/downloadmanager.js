@@ -2,23 +2,34 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
+Components.utils.import("resource://gre/modules/Services.jsm");
 Components.utils.import("resource://gre/modules/PluralForm.jsm");
-Components.utils.import("resource://gre/modules/DownloadTaskbarProgress.jsm");
+Components.utils.import("resource://gre/modules/Downloads.jsm");
 
-const nsIDownloadManager = Components.interfaces.nsIDownloadManager;
+XPCOMUtils.defineLazyModuleGetter(this, "DownloadsCommon",
+                                  "resource:///modules/DownloadsCommon.jsm");
+XPCOMUtils.defineLazyModuleGetter(this, "PlacesUtils",
+                                  "resource://gre/modules/PlacesUtils.jsm");
+XPCOMUtils.defineLazyModuleGetter(this, "FileUtils",
+                                  "resource://gre/modules/FileUtils.jsm");
 
 var gDownloadTree;
 var gDownloadTreeView;
-var gDownloadManager = Components.classes["@mozilla.org/download-manager;1"]
-                                 .getService(nsIDownloadManager);
+var gDownloadList;
 var gDownloadStatus;
 var gDownloadListener;
 var gSearchBox;
-var gDMUI = Components.classes["@mozilla.org/download-manager-ui;1"]
-                      .getService(Components.interfaces.nsIDownloadManagerUI);
 
 function dmStartup()
 {
+  Downloads.getList(Downloads.PUBLIC).then(dmAsyncStartup);
+}
+
+function dmAsyncStartup(aList)
+{
+  gDownloadList = aList;
+
   gDownloadTree = document.getElementById("downloadTree");
   gDownloadStatus = document.getElementById("statusbar-display");
   gSearchBox = document.getElementById("search-box");
@@ -26,17 +37,15 @@ function dmStartup()
   // Insert as first controller on the whole window
   window.controllers.insertControllerAt(0, dlTreeController);
 
-  // We need to keep the oview object around globally to access "local"
+  // We need to keep the view object around globally to access "local"
   // non-nsITreeView methods
-  gDownloadTreeView = new DownloadTreeView(gDownloadManager);
+  gDownloadTreeView = new DownloadTreeView();
   gDownloadTree.view = gDownloadTreeView;
-
-  Services.obs.addObserver(gDownloadObserver, "download-manager-remove-download-guid", false);
 
   // The DownloadProgressListener (DownloadProgressListener.js) handles
   // progress notifications.
   gDownloadListener = new DownloadProgressListener();
-  gDownloadManager.addListener(gDownloadListener);
+  gDownloadList.addView(gDownloadListener);
 
   // correct keybinding command attributes which don't do our business yet
   var key = document.getElementById("key_delete");
@@ -50,14 +59,11 @@ function dmStartup()
 
   if (gDownloadTree.view.rowCount > 0)
     gDownloadTree.view.selection.select(0);
-
-  DownloadTaskbarProgress.onDownloadWindowLoad(window);
 }
 
 function dmShutdown()
 {
-  gDownloadManager.removeListener(gDownloadListener);
-  Services.obs.removeObserver(gDownloadObserver, "download-manager-remove-download-guid");
+  gDownloadList.removeView(gDownloadListener);
   window.controllers.removeController(dlTreeController);
 }
 
@@ -127,107 +133,52 @@ function sortDownloads(aEventTarget)
   }
 }
 
-function retryDownload(aDownload)
+async function removeDownload(aDownload)
 {
-  aDownload.retry();
-  if (gDownloadTreeView)
-    gDownloadTreeView.removeDownload(aDownload.guid);
+  // Remove the associated history element first, if any, so that the views
+  // that combine history and session downloads won't resurrect the history
+  // download into the view just before it is deleted permanently.
+  try {
+    await PlacesUtils.history.remove(aDownload.source.url);
+  } catch (ex) {
+    Components.utils.reportError(ex);
+  }
+  let list = await Downloads.getList(Downloads.ALL);
+  await list.remove(aDownload);
+  await aDownload.finalize(true);
 }
 
 function cancelDownload(aDownload)
 {
-  aDownload.cancel();
-  // delete the file if it exists
-  var file = aDownload.targetFile;
-  if (file.exists())
-    file.remove(false);
+  // This is the correct way to avoid race conditions when cancelling.
+  aDownload.cancel().catch(() => {});
+  aDownload.removePartialData().catch(Components.utils.reportError);
 }
 
 function openDownload(aDownload)
 {
-  var name = aDownload.displayName;
-  var file = aDownload.targetFile;
-
-  if (file.isExecutable()) {
-    var alertOnEXEOpen = GetBoolPref("browser.download.manager.alertOnEXEOpen",
-                                     true);
-
-    // On Vista and above, we rely on native security prompting for
-    // downloaded content unless it's disabled.
-    try {
-      var sysInfo = Components.classes["@mozilla.org/system-info;1"]
-                              .getService(Components.interfaces.nsIPropertyBag2);
-      if (/^Windows/.test(sysInfo.getProperty("name")) &&
-          (parseFloat(sysInfo.getProperty("version")) >= 6 &&
-          Services.prefs.getBoolPref("browser.download.manager.scanWhenDone")))
-        alertOnEXEOpen = false;
-    } catch (ex) { }
-
-    if (alertOnEXEOpen) {
-      var dlbundle = document.getElementById("dmBundle");
-      var message = dlbundle.getFormattedString("fileExecutableSecurityWarning", [name, name]);
-
-      var title = dlbundle.getString("fileExecutableSecurityWarningTitle");
-      var dontAsk = dlbundle.getString("fileExecutableSecurityWarningDontAsk");
-
-      var checkbox = { value: false };
-      if (!Services.prompt.confirmCheck(window, title, message, dontAsk, checkbox))
-        return;
-      Services.prefs.setBoolPref("browser.download.manager.alertOnEXEOpen", !checkbox.value);
-    }
-  }
-
-  try {
-    var mimeInfo = aDownload.MIMEInfo;
-    if (mimeInfo && mimeInfo.preferredAction == mimeInfo.useHelperApp) {
-      mimeInfo.launchWithFile(file);
-      return;
-    }
-  } catch (ex) { }
-
-  try {
-    file.launch();
-  } catch (ex) {
-    // If launch fails, try sending it through the system's external
-    // file: URL handler
-    var uri = Services.io.newFileURI(file);
-    var protocolSvc = Components.classes["@mozilla.org/uriloader/external-protocol-service;1"]
-                                .getService(Components.interfaces.nsIExternalProtocolService);
-    protocolSvc.loadUrl(uri);
-  }
+  let file = new FileUtils.File(aDownload.target.path);
+  DownloadsCommon.openDownloadedFile(file, null, window);
 }
 
 function showDownload(aDownload)
 {
-  var file = aDownload.targetFile;
+  let file;
 
-  try {
-    // Show the directory containing the file and select the file
-    file.reveal();
-  } catch (e) {
-    // If reveal fails for some reason (e.g., it's not implemented on unix or
-    // the file doesn't exist), try using the parent if we have it.
-    var parent = file.parent.QueryInterface(Components.interfaces.nsILocalFile);
-
-    try {
-      // "Double click" the parent directory to show where the file should be
-      parent.launch();
-    } catch (e) {
-      // If launch also fails (probably because it's not implemented), let the
-      // OS handler try to open the parent
-      var uri = Services.io.newFileURI(parent);
-      var protocolSvc = Components.classes["@mozilla.org/uriloader/external-protocol-service;1"]
-                                  .getService(Components.interfaces.nsIExternalProtocolService);
-      protocolSvc.loadUrl(uri);
-    }
+  if (aDownload.succeeded &&
+      aDownload.target.exists) {
+    file = new FileUtils.File(aDownload.target.path);
+  } else {
+    file = new FileUtils.File(aDownload.target.partFilePath);
   }
+  DownloadsCommon.showDownloadedFile(file);
 }
 
 function showProperties(aDownload)
 {
-  var dmui = Components.classes["@mozilla.org/download-manager-ui;1"]
-                       .getService(Components.interfaces.nsISuiteDownloadManagerUI);
-  dmui.showProgress(window, aDownload);
+  openDialog("chrome://communicator/content/downloads/progressDialog.xul",
+             null, "chrome,titlebar,centerscreen,minimizable=yes,dialog=no",
+             { wrappedJSObject: aDownload }, true);
 }
 
 function onTreeSelect(aEvent)
@@ -235,7 +186,7 @@ function onTreeSelect(aEvent)
   var selectionCount = gDownloadTreeView.selection.count;
   if (selectionCount == 1) {
     var selItemData = gDownloadTreeView.getRowData(gDownloadTree.currentIndex);
-    gDownloadStatus.label = GetFileFromString(selItemData.file).path;
+    gDownloadStatus.label = selItemData.target.path;
   } else {
     gDownloadStatus.label = "";
   }
@@ -303,7 +254,8 @@ var gLastComputedMean = -1;
 var gLastActiveDownloads = 0;
 function onUpdateProgress()
 {
-  var numActiveDownloads = gDownloadManager.activeDownloadCount;
+  var dls = gDownloadTreeView.getActiveDownloads();
+  var numActiveDownloads = dls.length;
 
   // Use the default title and reset "last" values if there's no downloads
   if (numActiveDownloads == 0) {
@@ -317,12 +269,10 @@ function onUpdateProgress()
   // Establish the mean transfer speed and amount downloaded.
   var mean = 0;
   var base = 0;
-  var dls = gDownloadManager.activeDownloads;
-  while (dls.hasMoreElements()) {
-    var dl = dls.getNext();
-    if (dl.percentComplete < 100 && dl.size > 0) {
-      mean += dl.amountTransferred;
-      base += dl.size;
+  for (var dl of dls) {
+    if (dl.totalBytes > 0) {
+      mean += dl.currentBytes;
+      base += dl.totalBytes;
     }
   }
 
@@ -352,7 +302,7 @@ function onUpdateProgress()
 }
 
 function handlePaste() {
-  let trans = Components.classes["@mozilla.org/widget/transferable;1"]
+  let trans = Cc["@mozilla.org/widget/transferable;1"]
                         .createInstance(Components.interfaces.nsITransferable);
   trans.init(null);
 
@@ -365,32 +315,16 @@ function handlePaste() {
   try {
     let data = {};
     trans.getAnyTransferData({}, data, {});
-    let [url, name] = data.value.QueryInterface(Components.interfaces
-                                .nsISupportsString).data.split("\n");
+    let [url, name] = data.value
+                          .QueryInterface(Components.interfaces.nsISupportsString)
+                          .data.split("\n");
 
     if (!url)
       return;
 
-    let uri = Services.io.newURI(url, null, null);
-
-    saveURL(uri.spec, name || uri.spec, null, true, true, null, document);
+    DownloadURL(url, name || url, document);
   } catch (ex) {}
 }
-
-var gDownloadObserver = {
-  observe: function(aSubject, aTopic, aData) {
-    switch (aTopic) {
-      case "download-manager-remove-download-guid":
-        if (aSubject instanceof Components.interfaces.nsISupportsCString)
-          // We have a single download.
-          gDownloadTreeView.removeDownload(aSubject.data);
-        else
-          // A null subject here indicates "remove multiple", so we just rebuild.
-          gDownloadTreeView.initTree();
-      break;
-    }
-  }
-};
 
 var dlTreeController = {
   supportsCommand: function(aCommand)
@@ -440,11 +374,7 @@ var dlTreeController = {
         if (!selectionCount)
           return false;
         for (let dldata of selItemData) {
-          if (dldata.state != nsIDownloadManager.DOWNLOAD_CANCELED &&
-              dldata.state != nsIDownloadManager.DOWNLOAD_FAILED &&
-              (!dldata.resumable ||
-               (!dldata.isActive &&
-                dldata.state != nsIDownloadManager.DOWNLOAD_PAUSED)))
+          if (dldata.succeeded || (!dldata.stopped && !dldata.hasPartialData))
             return false;
         }
         return true;
@@ -452,9 +382,7 @@ var dlTreeController = {
         if (!selectionCount)
           return false;
         for (let dldata of selItemData) {
-          if (!dldata.isActive ||
-              dldata.state == nsIDownloadManager.DOWNLOAD_PAUSED ||
-              !dldata.resumable)
+          if (dldata.stopped || !dldata.hasPartialData)
             return false;
         }
         return true;
@@ -462,23 +390,29 @@ var dlTreeController = {
         if (!selectionCount)
           return false;
         for (let dldata of selItemData) {
-          if (dldata.state != nsIDownloadManager.DOWNLOAD_PAUSED ||
-              !dldata.resumable)
+          if (!dldata.stopped || !dldata.hasPartialData)
             return false;
         }
         return true;
       case "cmd_open":
         return selectionCount == 1 &&
-               selItemData[0].state == nsIDownloadManager.DOWNLOAD_FINISHED &&
-               GetFileFromString(selItemData[0].file).exists();
+               selItemData[0].succeeded &&
+               selItemData[0].target.exists;
       case "cmd_show":
+        // target.exists is only set if the download finished and the target
+        // is still located there.
+        // For simplicity we just assume the target is there if the download
+        // has not succeeded e.g. is still in progress. This might be wrong
+        // but showDownload will deal with it.
         return selectionCount == 1 &&
-               GetFileFromString(selItemData[0].file).exists();
+               ((selItemData[0].succeeded &&
+                 selItemData[0].target.exists) ||
+                 !selItemData[0].succeeded);
       case "cmd_cancel":
         if (!selectionCount)
           return false;
         for (let dldata of selItemData) {
-          if (!dldata.isActive)
+          if (dldata.stopped && !dldata.hasPartialData)
             return false;
         }
         return true;
@@ -486,8 +420,7 @@ var dlTreeController = {
         if (!selectionCount)
           return false;
         for (let dldata of selItemData) {
-          if (dldata.state != nsIDownloadManager.DOWNLOAD_CANCELED &&
-              dldata.state != nsIDownloadManager.DOWNLOAD_FAILED)
+          if (dldata.succeeded || !dldata.stopped || dldata.hasPartialData)
             return false;
         }
         return true;
@@ -495,12 +428,12 @@ var dlTreeController = {
         if (!selectionCount)
           return false;
         for (let dldata of selItemData) {
-          if (dldata.isActive)
+          if (!dldata.stopped)
             return false;
         }
         return true;
       case "cmd_openReferrer":
-        return selectionCount == 1 && !!selItemData[0].referrer;
+        return selectionCount == 1 && !!selItemData[0].source.referrer;
       case "cmd_stop":
       case "cmd_copyLocation":
         return selectionCount > 0;
@@ -509,7 +442,10 @@ var dlTreeController = {
       case "cmd_selectAll":
         return gDownloadTreeView.rowCount != selectionCount;
       case "cmd_clearList":
-        return gDownloadTreeView.rowCount && gDownloadManager.canCleanUp;
+        // Since active downloads always sort before removable downloads,
+        // we only need to check that the last download has stopped.
+        return gDownloadTreeView.rowCount &&
+               !gDownloadTreeView.getRowData(gDownloadTreeView.rowCount - 1).isActive;
       case "cmd_paste":
         return true;
       default:
@@ -538,86 +474,74 @@ var dlTreeController = {
     switch (aCommand) {
       case "cmd_play":
         for (let dldata of selItemData) {
-          switch (dldata.state) {
-            case nsIDownloadManager.DOWNLOAD_DOWNLOADING:
-              dldata.dld.pause();
-              break;
-            case nsIDownloadManager.DOWNLOAD_PAUSED:
-              dldata.dld.resume();
-              break;
-            case nsIDownloadManager.DOWNLOAD_FAILED:
-            case nsIDownloadManager.DOWNLOAD_CANCELED:
-              retryDownload(dldata.dld);
-              break;
-          }
+          if (!dldata.stopped)
+            dldata.cancel();
+          else if (!dldata.succeeded)
+            dldata.start();
         }
         break;
       case "cmd_pause":
         for (let dldata of selItemData)
-          dldata.dld.pause();
+          dldata.cancel();
         break;
       case "cmd_resume":
-        for (let dldata of selItemData)
-          dldata.dld.resume();
-        break;
       case "cmd_retry":
-        for (let dldata of selItemData)
-          retryDownload(dldata.dld);
+        for (let dldata of selItemData) {
+         // Errors when retrying are already reported as download failures.
+         dldata.start();
+        }
         break;
       case "cmd_cancel":
         for (let dldata of selItemData)
-          cancelDownload(dldata.dld);
+          cancelDownload(dldata);
         break;
       case "cmd_remove":
         for (let dldata of selItemData)
-          dldata.dld.remove();
+          removeDownload(dldata).catch(Components.utils.reportError);
         break;
       case "cmd_stop":
         for (let dldata of selItemData) {
           if (dldata.isActive)
-            cancelDownload(dldata.dld);
+            cancelDownload(dldata);
           else
-            dldata.dld.remove();
+            gDownloadList.remove(dldata);
         }
         break;
       case "cmd_open":
-        openDownload(selItemData[0].dld);
+        openDownload(selItemData[0]);
         break;
       case "cmd_show":
-        showDownload(selItemData[0].dld);
+        showDownload(selItemData[0]);
         break;
       case "cmd_openReferrer":
         openUILink(selItemData[0].referrer);
         break;
       case "cmd_copyLocation":
-        var clipboard = Components.classes["@mozilla.org/widget/clipboardhelper;1"]
+        var clipboard = Cc["@mozilla.org/widget/clipboardhelper;1"]
                                   .getService(Components.interfaces.nsIClipboardHelper);
         var uris = [];
         for (let dldata of selItemData)
-          uris.push(dldata.uri);
-        clipboard.copyString(uris.join("\n"));
+          uris.push(dldata.source.url);
+          clipboard.copyString(uris.join("\n"), document);
         break;
       case "cmd_properties":
-        showProperties(selItemData[0].dld);
+        showProperties(selItemData[0]);
         break;
       case "cmd_selectAll":
         gDownloadTreeView.selection.selectAll();
         break;
       case "cmd_clearList":
-        // Clear the whole list if there's no search
-        if (gSearchBox.value == "") {
-          gDownloadManager.cleanUp();
-          return;
-        }
-
         // Remove each download starting from the end until we hit a download
         // that is in progress
         for (let idx = gDownloadTreeView.rowCount - 1; idx >= 0; idx--) {
           let dldata = gDownloadTreeView.getRowData(idx);
           if (!dldata.isActive) {
-            dldata.dld.remove();
+            gDownloadList.remove(dldata);
           }
         }
+
+        if (!gSearchBox.value)
+          break;
 
         // Clear the input as if the user did it and move focus to the list
         gSearchBox.value = "";
@@ -656,7 +580,7 @@ var gDownloadDNDObserver = {
       return;
 
     var selItemData = gDownloadTreeView.getRowData(gDownloadTree.currentIndex);
-    var file = GetFileFromString(selItemData.file);
+    var file = new FileUtils.File(selItemData.target.path);
 
     if (!file.exists())
       return;
