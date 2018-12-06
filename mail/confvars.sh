@@ -9,8 +9,8 @@ MOZ_APP_NAME=interlink
 MOZ_APP_VENDOR=BinOC
 MOZ_APP_ID={3550f703-e582-4d05-9a08-453d09bdfdc6}
 MOZ_APP_STATIC_INI=1
-MOZ_APP_VERSION=`cat ${_topsrcdir}/$MOZ_BUILD_APP/config/version.txt`.`$PYTHON ${_topsrcdir}/../config/version2k.py`
-MOZ_APP_VERSION_DISPLAY=`$PYTHON ${_topsrcdir}/../config/version2k.py`
+MOZ_APP_VERSION=`$PYTHON ${_topsrcdir}/../config/version2k.py --version ${_topsrcdir}/../mail/config/version.txt`
+MOZ_APP_VERSION_DISPLAY=`$PYTHON ${_topsrcdir}/../config/version2k.py --version ${_topsrcdir}/../mail/config/version.txt build`
 MOZ_BRANDING_DIRECTORY=mail/branding/unofficial
 MOZ_OFFICIAL_BRANDING_DIRECTORY=mail/branding/official
 MOZ_PROFILE_MIGRATOR=1
@@ -30,7 +30,7 @@ THUNDERBIRD_VERSION=$MOZ_APP_VERSION
 MOZ_PLACES=1
 MOZ_JSDOWNLOADS=1
 MOZ_SEPARATE_MANIFEST_FOR_THEME_OVERRIDES=1
-MOZ_SAFE_BROWSING=1
+MOZ_SAFE_BROWSING=
 MOZ_SERVICES_SYNC=
 MOZ_SERVICES_COMMON=
 MOZ_SERVICES_CLOUDSYNC=
@@ -38,6 +38,10 @@ MOZ_SERVICES_HEALTHREPORT=
 MOZ_JETPACK=
 MOZ_DEVTOOLS_SERVER=
 MOZ_DEVTOOLS=
+MOZ_GAMEPAD=
+MOZ_NECKO_WIFI=
+MOZ_AV1=
+MOZ_WEBRTC=
 
 if test "$OS_ARCH" = "WINNT" -o \
         "$OS_ARCH" = "Linux"; then
@@ -50,4 +54,3 @@ fi
 ACCEPTED_MAR_CHANNEL_IDS=release,unstable
 # The MAR_CHANNEL_ID must not contain the following 3 characters: ",\t "
 MAR_CHANNEL_ID=release
-MOZ_UPDATER=1

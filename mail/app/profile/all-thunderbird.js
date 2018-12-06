@@ -129,11 +129,6 @@ pref("app.update.url.details", "http://binaryoutcast.com/projects/interlink/");
 // Show the Update Checking/Ready UI when the user was idle for x seconds
 pref("app.update.idletime", 60);
 
-// Whether or not to attempt using the service for updates.
-#ifdef MOZ_MAINTENANCE_SERVICE
-pref("app.update.service.enabled", false);
-#endif
-
 // Release notes URL
 pref("app.releaseNotesURL", "http://binaryoutcast.com/projects/interlink/");
 
@@ -212,8 +207,6 @@ pref("extensions.update.interval", 86400);  // Check for updates to Extensions a
 pref("extensions.dss.enabled", false);          // Dynamic Skin Switching
 pref("extensions.dss.switchPending", false);    // Non-dynamic switch pending after next
 
-pref("lightweightThemes.update.enabled", true);
-
 pref("xpinstall.whitelist.add", "addons.mozilla.org");
 
 pref("general.smoothScroll", true);
@@ -269,7 +262,7 @@ pref("accessibility.typeaheadfind.flashBar", 1);
 pref("mail.close_message_window.on_delete", false);
 
 // Disable the start page
-pref("mailnews.start_page.enabled", false);
+pref("mailnews.start_page.enabled", true);
 
 // Number of lines of To/CC/BCC address headers to show before "more"
 // truncates the list.
